@@ -78,7 +78,7 @@ app.post('/api/request-pairing', async (req, res) => {
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             logger: pino({ level: 'silent' }),
-            browser: Browsers.macOS("Desktop"),
+            browser: Browsers.ubuntu("Chrome"), // Changement pour Linux/Render
             printQRInTerminal: false,
             markOnlineOnConnect: false,
             syncFullHistory: false,
