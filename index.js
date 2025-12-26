@@ -14,6 +14,7 @@ import { initGhostMode, shouldBlockReadReceipt } from './src/features/ghost-mode
 import { restoreScheduledStatuses } from './src/features/status-scheduler.js';
 import { addMessage, getMessage } from './src/utils/store-messages.js';
 import { handleAntiDelete } from './src/features/antidelete.js';
+import { handleAutoStatusLike } from './src/features/auto-status-like.js';
 import config from './src/config/default.js';
 
 let sock;
@@ -225,8 +226,11 @@ async function startWBOT() {
                 addMessage(message.key.id, message);
             }
 
-            // Ignorer les messages de statut broadcast (sauf pour la sauvegarde)
-            if (message.key.remoteJid === 'status@broadcast') continue;
+            // Auto-like des statuts (avant de les ignorer)
+            if (message.key.remoteJid === 'status@broadcast') {
+                await handleAutoStatusLike(sock, message, ownerJid);
+                continue; // Ignorer le traitement normal des statuts
+            }
 
             // Traiter le message
             await handleMessage(sock, message, ownerJid);

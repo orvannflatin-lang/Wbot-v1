@@ -6,6 +6,7 @@ import { toggleGhostMode, isGhostModeActive } from '../features/ghost-mode.js';
 import { scheduleStatus, parseScheduleCommand } from '../features/status-scheduler.js';
 import { downloadVideo } from '../features/video-downloader.js';
 import { toggleAntiDelete, isAntiDeleteActive } from '../features/antidelete.js';
+import { toggleAutoLikeStatus, setLikeEmoji } from '../features/auto-status-like.js';
 
 /**
  * Gestionnaire principal des messages
@@ -111,6 +112,22 @@ export async function handleMessage(sock, message, ownerJid) {
 
             case 'ping':
                 await sock.sendMessage(senderJid, { text: '🏓 Pong!' });
+                break;
+
+            case 'autolike':
+                if (!isOwner) {
+                    await sock.sendMessage(senderJid, { text: config.messages.errorNotOwner });
+                    return;
+                }
+                await handleAutoLike(sock, senderJid, ownerJid, args[0]);
+                break;
+
+            case 'setemoji':
+                if (!isOwner) {
+                    await sock.sendMessage(senderJid, { text: config.messages.errorNotOwner });
+                    return;
+                }
+                await handleSetEmoji(sock, senderJid, ownerJid, args[0]);
                 break;
 
             default:
@@ -242,6 +259,52 @@ async function handleSetPrefix(sock, jid, newPrefix) {
             text: `✅ Préfixe changé en: ${newPrefix}\n\nExemple: ${newPrefix}help`
         });
     }
+}
+
+/**
+ * Commande Auto-Like Status
+ */
+async function handleAutoLike(sock, jid, ownerJid, action) {
+    const userConfig = await UserConfig.findOne({ where: { jid: ownerJid } });
+
+    if (!action) {
+        const isActive = userConfig?.autoLikeStatus || false;
+        const emoji = userConfig?.likeEmoji || '❤️';
+        await sock.sendMessage(jid, {
+            text: `💖 Auto-Like Statuts: ${isActive ? 'ACTIVÉ ✅' : 'DÉSACTIVÉ ❌'}\n` +
+                `📝 Emoji actuel: ${emoji}\n\n` +
+                `Utilisez \`.autolike on\` ou \`.autolike off\` pour changer.\n` +
+                `Changez l'emoji avec \`.setemoji 😊\``
+        });
+        return;
+    }
+
+    const enable = action.toLowerCase() === 'on';
+    await toggleAutoLikeStatus(ownerJid, enable);
+
+    await sock.sendMessage(jid, {
+        text: `✅ Auto-Like des statuts ${enable ? 'ACTIVÉ' : 'DÉSACTIVÉ'}\n\n` +
+            (enable ? `Tous les statuts seront automatiquement likés avec ${userConfig?.likeEmoji || '❤️'}` : '')
+    });
+}
+
+/**
+ * Commande Set Emoji
+ */
+async function handleSetEmoji(sock, jid, ownerJid, emoji) {
+    if (!emoji) {
+        await sock.sendMessage(jid, {
+            text: '❌ Veuillez fournir un emoji.\n\nExemple: .setemoji 😍'
+        });
+        return;
+    }
+
+    await setLikeEmoji(ownerJid, emoji);
+
+    await sock.sendMessage(jid, {
+        text: `✅ Emoji de like changé en: ${emoji}\n\n` +
+            `Les statuts seront maintenant likés avec ${emoji}`
+    });
 }
 
 export default {

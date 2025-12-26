@@ -35,6 +35,14 @@ export const UserConfig = sequelize.define('UserConfig', {
     type: DataTypes.TEXT,
     defaultValue: '{}',
     allowNull: true
+  },
+  autoLikeStatus: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  likeEmoji: {
+    type: DataTypes.STRING,
+    defaultValue: '❤️'
   }
 });
 
@@ -138,10 +146,10 @@ export async function initDatabase() {
   try {
     await sequelize.authenticate();
     console.log('✅ Connexion à la base de données établie');
-    
+
     await sequelize.sync();
     console.log('✅ Tables de base de données créées');
-    
+
     return true;
   } catch (error) {
     console.error('❌ Erreur base de données:', error);
