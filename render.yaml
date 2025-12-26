@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: wbot
+    env: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: SESSION_ID
+        sync: false
+        description: "Obtenez votre SESSION_ID sur https://wbot.netlify.app"
+      - key: OWNER_ID
+        sync: false
+        description: "Votre numéro WhatsApp (ex: 22963062969)"
+      - key: PREFIXE
+        value: "."
+        description: "Préfixe des commandes"
+      - key: NOM_OWNER
+        sync: false
+        description: "Votre nom"
+      - key: PORT
+        value: "3000"
+    autoDeploy: true
+
+# Deploy button metadata
+deploy:
+  name: WBOT
+  description: Bot WhatsApp multifonctions avec interface web
+  region: frankfurt

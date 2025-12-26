@@ -1,0 +1,15 @@
+node_modules/
+.env
+auth_info/
+auth_info_*/
+auth_test/
+auth_basic_test/
+temp_sessions/
+downloads/
+temp/
+*.log
+wbot.db
+wbot_test.db
+package-lock.json
+lib/store_msg.json
+

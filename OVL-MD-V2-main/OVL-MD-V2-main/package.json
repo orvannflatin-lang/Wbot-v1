@@ -1,0 +1,39 @@
+{
+  "name": "OVL-MD-V2",
+  "version": "2.0.5",
+  "description": "Bot Whatsapp multi-appareil developpé par Ainz",
+  "main": "Ovl.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "pm2 start Ovl.js --attach --name ovl",
+    "stop": "pm2 stop all",
+    "Ovl": "pm2 start Ovl.js --attach --name ovl"
+  },
+  "keywords": ["Ainz", "OVL-MD-V2", "wa-bot", "Whatsapp", "Baileys", "Muti-device"],
+  "author": "Ainz-devs",
+  "license": "MIT",
+  "dependencies": {
+    "@vitalets/google-translate-api": "^9.2.1",
+    "@whiskeysockets/baileys": "npm:ovl-baileys@2.0.0",
+    "adm-zip": "^0.5.16",
+    "axios": "^1.8.4",
+    "canvacord": "^6.0.2",
+    "cheerio": "^1.1.0",
+    "cookie": "^1.0.2",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "file-type": "^16.5.3",
+    "g-i-s": "^2.1.7",
+    "gtts": "^0.2.1",
+    "javascript-obfuscator": "^4.1.1",
+    "pg": "^8.16.3",
+    "pino": "^9.7.0",
+    "pm2": "^6.0.8",
+    "sqlite3": "^5.1.7",
+    "tempmail.lol": "^4.4.0",
+    "sequelize": "^6.37.7",
+    "simple-git": "^3.28.0",
+    "wa-sticker-formatter": "^4.4.4",
+    "wikipedia": "^2.1.2"
+  }
+}

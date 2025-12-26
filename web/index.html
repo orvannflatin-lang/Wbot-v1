@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WBOT - WhatsApp Bot Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Background -->
+    <div class="bg-gradient"></div>
+    <div class="bg-pattern"></div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🤖</span>
+                <h1>WBOT</h1>
+            </div>
+            <p class="tagline">WhatsApp Bot Manager</p>
+        </header>
+
+        <!-- Step 1: Phone Number -->
+        <div id="step1" class="step active">
+            <div class="glass-card">
+                <h2>📱 Connecter WhatsApp</h2>
+                <p>Entrez votre numéro de téléphone pour commencer</p>
+
+                <form id="phoneForm">
+                    <div class="input-group">
+                        <label for="phoneNumber">Numéro (format international)</label>
+                        <input type="tel" id="phoneNumber" placeholder="22963062969" pattern="[0-9]+" required />
+                        <span class="input-hint">Sans espaces ni symboles (+, -, etc.)</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <span>Continuer</span>
+                        <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Step 2: Choose Method -->
+        <div id="step2" class="step">
+            <div class="glass-card">
+                <h2>🔐 Méthode de connexion</h2>
+                <p>Choisissez votre méthode préférée</p>
+
+                <div class="method-grid">
+                    <button class="method-card" id="btnPairing">
+                        <div class="method-icon">🔢</div>
+                        <h3>Code de Pairage</h3>
+                        <p>Connexion rapide avec un code à 8 chiffres</p>
+                        <span class="badge">Recommandé</span>
+                    </button>
+
+                    <button class="method-card" id="btnQR">
+                        <div class="method-icon">📷</div>
+                        <h3>QR Code</h3>
+                        <p>Scanner avec votre téléphone</p>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Connection -->
+        <div id="step3" class="step">
+            <div class="glass-card">
+                <div id="loadingState" class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Génération de votre code...</p>
+                </div>
+
+                <div id="pairingCodeDisplay" class="code-display" style="display: none;">
+                    <h2>🔑 Votre Code de Pairage</h2>
+                    <div class="pairing-code" id="pairingCode">----</div>
+                    <div class="instructions">
+                        <p><strong>Instructions :</strong></p>
+                        <ol>
+                            <li>Ouvrez WhatsApp sur votre téléphone</li>
+                            <li>Allez dans <strong>Paramètres</strong> > <strong>Appareils connectés</strong></li>
+                            <li>Appuyez sur <strong>"Connecter un appareil"</strong></li>
+                            <li>Choisissez <strong>"Connecter avec le numéro de téléphone"</strong></li>
+                            <li>Entrez le code ci-dessus</li>
+                        </ol>
+                    </div>
+                    <div class="status-indicator">
+                        <div class="pulse"></div>
+                        <span>En attente de connexion...</span>
+                    </div>
+                </div>
+
+                <div id="qrCodeDisplay" class="qr-display" style="display: none;">
+                    <h2>📷 Scannez le QR Code</h2>
+                    <div id="qrCodeContainer"></div>
+                    <div class="instructions">
+                        <p><strong>Instructions :</strong></p>
+                        <ol>
+                            <li>Ouvrez WhatsApp sur votre téléphone</li>
+                            <li>Allez dans <strong>Paramètres</strong> > <strong>Appareils connectés</strong></li>
+                            <li>Appuyez sur <strong>"Connecter un appareil"</strong></li>
+                            <li>Scannez le QR code ci-dessus</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Success -->
+        <div id="step4" class="step">
+            <div class="glass-card success-card">
+                <div class="success-icon">✅</div>
+                <h2>Connexion Réussie !</h2>
+                <p>Votre SESSION_ID a été envoyée sur votre WhatsApp</p>
+
+                <div class="session-info">
+                    <div class="info-item">
+                        <span class="label">Numéro :</span>
+                        <span class="value" id="displayPhone">---</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Session ID :</span>
+                        <div class="session-id-box">
+                            <code id="displaySessionId">---</code>
+                            <button class="btn-copy" id="btnCopySession">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="next-steps">
+                    <h3>🚀 Prochaines Étapes</h3>
+                    <ol>
+                        <li>Vérifiez votre WhatsApp pour le message de configuration</li>
+                        <li>Copiez votre SESSION_ID ci-dessus</li>
+                        <li>Déployez sur Render avec les informations fournies</li>
+                    </ol>
+                </div>
+
+                <button class="btn btn-secondary" onclick="location.reload()">
+                    Nouvelle Connexion
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Développé par <strong>Luis-Orvann</strong> · WBOT v1.0</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
