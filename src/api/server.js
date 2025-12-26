@@ -81,28 +81,22 @@ app.post('/api/request-pairing', async (req, res) => {
             browser: Browsers.macOS("Desktop"),
             printQRInTerminal: false,
             markOnlineOnConnect: false,
-            syncFullHistory: false
+            syncFullHistory: false,
+            connectTimeoutMs: 60000, // Augmenter le timeout à 60s
+            keepAliveIntervalMs: 10000, // Keep-alive toutes les 10s
+            retryRequestDelayMs: 5000
         });
 
-        let qrCodeData = null;
-        let qrImageData = null;
-        let pairingCode = null;
-
-        // Store session FIRST before events
-        activeSessions.set(tempSessionId, {
-            sock,
-            phoneNumber,
-            authFolder,
-            saveCreds,
-            qr: null,
-            qrImage: null,
-            code: null,
-            connected: false
-        });
+        // ... (reste du code)
 
         // Listen for QR code and connection
         sock.ev.on('connection.update', async (update) => {
-            const { connection, qr } = update;
+            const { connection, qr, lastDisconnect } = update; // Ajouter lastDisconnect
+
+            if (connection === 'close') {
+                const reason = lastDisconnect?.error?.output?.statusCode;
+                console.log('❌ Connection closed. Reason:', reason, 'Error:', lastDisconnect?.error);
+            }
 
             if (qr) {
                 qrCodeData = qr;
