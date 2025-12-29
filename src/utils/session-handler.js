@@ -1,12 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import zlib from 'zlib';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Encode auth_info folder to Base64 SESSION_ID
+ * Encode auth_info folder to Base64 SESSION_ID (Compressed)
  * @param {string} authFolder - Path to auth_info folder
  * @returns {string} Base64 encoded session ID
  */
@@ -23,11 +24,12 @@ export function encodeSession(authFolder) {
             sessionData[file] = content;
         }
 
-        // Convert to Base64
+        // Convert to JSON -> Buffer -> GZIP -> Base64
         const jsonString = JSON.stringify(sessionData);
-        const base64 = Buffer.from(jsonString).toString('base64');
+        const buffer = Buffer.from(jsonString, 'utf-8');
+        const compressed = zlib.gzipSync(buffer);
 
-        return `WBOT_${base64}`;
+        return `WBOT_${compressed.toString('base64')}`;
     } catch (error) {
         console.error('Error encoding session:', error);
         throw error;
@@ -46,9 +48,18 @@ export function decodeSession(sessionId, targetFolder) {
             ? sessionId.substring(5)
             : sessionId;
 
-        // Decode from Base64
-        const jsonString = Buffer.from(base64Data, 'base64').toString('utf-8');
-        const sessionData = JSON.parse(jsonString);
+        // Decode from Base64 -> GZIP -> JSON
+        const compressedBuffer = Buffer.from(base64Data, 'base64');
+        let sessionData;
+
+        try {
+            const decompressed = zlib.gunzipSync(compressedBuffer);
+            sessionData = JSON.parse(decompressed.toString('utf-8'));
+        } catch (e) {
+            // Fallback for legacy uncompressed sessions
+            const jsonString = compressedBuffer.toString('utf-8');
+            sessionData = JSON.parse(jsonString);
+        }
 
         // Create target folder if it doesn't exist
         if (!fs.existsSync(targetFolder)) {
@@ -90,11 +101,10 @@ export function isValidSessionId(sessionId) {
     // Must start with WBOT_
     if (!sessionId.startsWith('WBOT_')) return false;
 
-    // Try to decode
+    // Try to decode (lite check)
     try {
         const base64Data = sessionId.substring(5);
-        const decoded = Buffer.from(base64Data, 'base64').toString('utf-8');
-        JSON.parse(decoded);
+        Buffer.from(base64Data, 'base64');
         return true;
     } catch {
         return false;

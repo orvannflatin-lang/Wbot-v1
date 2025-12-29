@@ -36,6 +36,11 @@ export const UserConfig = sequelize.define('UserConfig', {
     defaultValue: '{}',
     allowNull: true
   },
+  shortcuts: {
+    type: DataTypes.TEXT, // Stockera un JSON { "👽": "vv", "💾": "save" }
+    defaultValue: '{}',
+    allowNull: true
+  },
   autoLikeStatus: {
     type: DataTypes.BOOLEAN,
     defaultValue: false

@@ -58,7 +58,7 @@ const activeSessions = new Map();
  */
 app.post('/api/request-pairing', async (req, res) => {
     try {
-        const { phoneNumber } = req.body;
+        const { phoneNumber, method } = req.body;
 
         if (!phoneNumber) {
             return res.status(400).json({ error: 'Phone number is required' });
@@ -68,128 +68,152 @@ app.post('/api/request-pairing', async (req, res) => {
         const tempSessionId = generateSessionId();
         const authFolder = `./temp_sessions/${tempSessionId}`;
 
+        // 🔧 FIX: Declare variables at function scope
+        let qrCodeData = null;
+        let qrImageData = null;
+        let pairingCode = null;
+
+        // Promise to wait for QR or Code
+        let responseSent = false;
+
+        // 🔧 FIX: Clean session folder robustly (like connect-fix.js)
+        if (fs.existsSync(authFolder)) {
+            fs.rmSync(authFolder, { recursive: true, force: true });
+            console.log('🧹 Session cleaned:', authFolder);
+        }
+
         // Create auth state
         const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
-        // Create socket with QR code enabled
+        // Create socket
         const sock = makeWASocket({
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             logger: pino({ level: 'silent' }),
-            browser: Browsers.ubuntu("Chrome"), // Changement pour Linux/Render
+            browser: Browsers.ubuntu("Chrome"),
             printQRInTerminal: false,
+            mobile: false, // Explicitly set false like in connect-fix.js
             markOnlineOnConnect: false,
             syncFullHistory: false,
-            connectTimeoutMs: 60000, // Augmenter le timeout à 60s
-            keepAliveIntervalMs: 10000, // Keep-alive toutes les 10s
+            connectTimeoutMs: 60000,
             retryRequestDelayMs: 5000
         });
 
-        // ... (reste du code)
-
-        // Listen for QR code and connection
-        sock.ev.on('connection.update', async (update) => {
-            const { connection, qr, lastDisconnect } = update; // Ajouter lastDisconnect
-
-            if (connection === 'close') {
-                const reason = lastDisconnect?.error?.output?.statusCode;
-                console.log('❌ Connection closed. Reason:', reason, 'Error:', lastDisconnect?.error);
-            }
-
-            if (qr) {
-                qrCodeData = qr;
-                const session = activeSessions.get(tempSessionId);
-                if (session) {
-                    session.qr = qr;
-
-                    // Generate QR image
-                    try {
-                        const qrImage = await QRCode.toDataURL(qr);
-                        session.qrImage = qrImage;
-                        console.log('✅ QR Code image generated');
-                    } catch (qrError) {
-                        console.error('❌ QR image error:', qrError.message);
-                    }
-                }
-            }
-
-            if (connection === 'open') {
-                const session = activeSessions.get(tempSessionId);
-                if (session) {
-                    session.connected = true;
-                    session.ownerJid = sock.user.id;
-
-                    // Encode session
-                    const sessionId = encodeSession(authFolder);
-                    session.sessionId = sessionId;
-
-                    // Send WhatsApp message with config
-                    await sendConfigMessage(sock, sessionId, phoneNumber);
-                    console.log('✅ Connected and config sent');
-                }
-            }
+        // Store session early
+        activeSessions.set(tempSessionId, {
+            phoneNumber,
+            connected: false,
+            code: null,
+            qr: null,
+            qrImage: null,
+            sessionId: null
         });
 
-        sock.ev.on('creds.update', saveCreds);
+        return new Promise(async (resolve, reject) => {
+            // Timeout safety
+            const timeout = setTimeout(() => {
+                if (!responseSent) {
+                    responseSent = true;
+                    // Send whatever we have or error
+                    res.status(504).json({ error: 'Timeout waiting for WhatsApp code' });
+                    resolve();
+                }
+            }, 20000); // 20s timeout
 
-        // Request pairing code IMMEDIATELY
-        try {
-            console.log('📱 Requesting pairing code for:', phoneNumber);
-            pairingCode = await sock.requestPairingCode(phoneNumber);
-            console.log('✅ Pairing code generated:', pairingCode);
+            // Listen for QR code
+            sock.ev.on('connection.update', async (update) => {
+                const { connection, qr, lastDisconnect } = update;
 
-            const session = activeSessions.get(tempSessionId);
-            if (session) session.code = pairingCode;
+                if (qr) {
+                    qrCodeData = qr;
+                    console.log('📷 QR Code received');
 
-        } catch (pairingError) {
-            console.error('❌ Pairing code error:', pairingError.message);
+                    try {
+                        qrImageData = await QRCode.toDataURL(qr);
 
-            // If pairing fails, wait for QR
-            console.log('⏳ Waiting for QR code generation...');
-            await delay(5000);
+                        // Update session
+                        const session = activeSessions.get(tempSessionId);
+                        if (session) {
+                            session.qr = qr;
+                            session.qrImage = qrImageData;
+                        }
 
-            const session = activeSessions.get(tempSessionId);
-            if (session && session.qr) {
-                qrCodeData = session.qr;
-                qrImageData = session.qrImage;
-                console.log('✅ QR Code available as fallback');
-            } else if (!pairingCode) {
-                sock.end();
-                return res.status(500).json({
-                    error: 'Impossible de générer le code',
-                    details: 'Problème de connexion WhatsApp. Réessayez.'
-                });
+                        // If user requested QR, send it now
+                        if (method === 'qr' && !responseSent) {
+                            responseSent = true;
+                            clearTimeout(timeout);
+                            res.json({
+                                success: true,
+                                qr: qrCodeData,
+                                qrImage: qrImageData,
+                                code: null,
+                                sessionId: tempSessionId,
+                                message: 'QR Code generated'
+                            });
+                            resolve();
+                        }
+                    } catch (e) {
+                        console.error('QR Gen Error:', e);
+                    }
+                }
+
+                // ... (Connection logic remains handled by event listener)
+                if (connection === 'open') {
+                    const session = activeSessions.get(tempSessionId);
+                    if (session) {
+                        session.connected = true;
+                        session.ownerJid = sock.user.id;
+                        session.sessionId = encodeSession(authFolder);
+                        await sendConfigMessage(sock, session.sessionId, phoneNumber);
+                    }
+                }
+            });
+
+            sock.ev.on('creds.update', saveCreds);
+
+            // Handle Pairing Code
+            if (method === 'pairing') {
+                try {
+                    console.log('📱 Requesting pairing code for:', phoneNumber);
+                    // Delay slightly to let socket init
+                    await delay(2000);
+
+                    if (!sock.authState.creds.registered) {
+                        pairingCode = await sock.requestPairingCode(phoneNumber);
+                        console.log('✅ Pairing code generated:', pairingCode);
+
+                        const session = activeSessions.get(tempSessionId);
+                        if (session) session.code = pairingCode;
+
+                        if (!responseSent) {
+                            responseSent = true;
+                            clearTimeout(timeout);
+                            res.json({
+                                success: true,
+                                qr: null,
+                                qrImage: null,
+                                code: pairingCode,
+                                sessionId: tempSessionId,
+                                message: 'Pairing code generated'
+                            });
+                            resolve();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Pairing Error:', e);
+                    if (!responseSent) {
+                        responseSent = true;
+                        res.status(500).json({ error: 'Failed to generate pairing code' });
+                        resolve();
+                    }
+                }
+            } else {
+                // Method QR: We just wait for the 'qr' event listener above
+                console.log('📷 Waiting for QR Code...');
             }
-        }
 
-        // If no QR image yet but we have QR data, generate it now
-        if (!qrImageData && qrCodeData) {
-            try {
-                qrImageData = await QRCode.toDataURL(qrCodeData);
-                const session = activeSessions.get(tempSessionId);
-                if (session) session.qrImage = qrImageData;
-            } catch (qrError) {
-                console.error('❌ QR image generation error:', qrError.message);
-            }
-        }
-
-        // Update session with latest data
-        const session = activeSessions.get(tempSessionId);
-        if (session) {
-            session.qr = qrCodeData;
-            session.qrImage = qrImageData;
-            session.code = pairingCode;
-        }
-
-        res.json({
-            success: true,
-            qr: qrCodeData || null,
-            qrImage: qrImageData || null,
-            code: pairingCode || null,
-            sessionId: tempSessionId,
-            message: pairingCode ? 'Pairing code generated' : (qrCodeData ? 'QR Code generated' : 'Session created')
         });
 
     } catch (error) {
@@ -213,6 +237,7 @@ app.get('/api/session-status/:sessionId', (req, res) => {
         connected: session.connected,
         phoneNumber: session.phoneNumber,
         code: session.code,
+        qrImage: session.qrImage || null, // Add this line
         sessionId: session.sessionId || null,
         ownerJid: session.ownerJid || null
     });

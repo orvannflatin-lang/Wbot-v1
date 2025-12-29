@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import { startApiServer } from './src/api/server.js';
 import { decodeSession } from './src/utils/session-handler.js';
+import { restoreSessionFromSupabase } from './src/utils/supabase-session.js';
 
 // Load environment variables
 dotenv.config();
@@ -13,22 +14,28 @@ async function start() {
 
     const SESSION_ID = process.env.SESSION_ID;
 
-    if (SESSION_ID && SESSION_ID.startsWith('WBOT_')) {
-        // MODE: Direct Bot (Production)
+    if (SESSION_ID) {
         console.log('📋 Mode: BOT (Session détectée)');
-        console.log('🔄 Décodage de la session...\n');
 
         try {
-            // Decode SESSION_ID to ./auth_info
-            decodeSession(SESSION_ID, './auth_info');
+            if (SESSION_ID.startsWith('WBOT~')) {
+                // CAS 1: Session Courte (Supabase)
+                console.log('☁️ Récupération depuis Supabase...');
+                await restoreSessionFromSupabase(SESSION_ID, './auth_info');
+            } else if (SESSION_ID.startsWith('WBOT_')) {
+                // CAS 2: Session Longue (Base64/GZIP)
+                console.log('🔄 Décodage session locale...');
+                decodeSession(SESSION_ID, './auth_info');
+            }
+
             console.log('✅ Session restaurée\n');
 
             // Import and start the bot
             const { default: startWBOT } = await import('./index.js');
             await startWBOT();
         } catch (error) {
-            console.error('❌ Erreur de décodage de session:', error.message);
-            console.error('💡 Vérifiez que votre SESSION_ID est valide\n');
+            console.error('❌ Erreur de restauration session:', error.message);
+            console.error('💡 Vérifiez votre SESSION_ID\n');
             process.exit(1);
         }
     } else {

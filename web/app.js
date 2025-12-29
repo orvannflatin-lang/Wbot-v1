@@ -100,7 +100,8 @@ async function requestPairingCode() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                phoneNumber: currentPhoneNumber
+                phoneNumber: currentPhoneNumber,
+                method: 'pairing'
             })
         });
 
@@ -123,13 +124,7 @@ async function requestPairingCode() {
 
     } catch (error) {
         console.error('Error requesting pairing code:', error);
-
-        // Show detailed error
-        const errorMsg = error.message || 'Erreur inconnue';
-        showNotification(`Impossible de générer le code: ${errorMsg}`, 'error');
-
-        // Show error details in console
-        console.error('Full error:', error);
+        showNotification('Impossible de générer le code. Vérifiez le numéro.', 'error');
     }
 }
 
@@ -151,7 +146,8 @@ async function requestQRCode() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                phoneNumber: currentPhoneNumber
+                phoneNumber: currentPhoneNumber,
+                method: 'qr'
             })
         });
 
@@ -171,11 +167,10 @@ async function requestQRCode() {
 
             // Generate QR code using image
             const qrContainer = document.getElementById('qrCodeContainer');
-            qrContainer.innerHTML = ''; // Clear previous
+            qrContainer.innerHTML = '';
 
-            // Create img element for QR code
             const img = document.createElement('img');
-            img.src = data.qrImage; // Base64 Data URL from server
+            img.src = data.qrImage;
             img.alt = 'QR Code WhatsApp';
             img.style.width = '300px';
             img.style.height = '300px';
@@ -205,9 +200,6 @@ async function requestQRCode() {
     }
 }
 
-// QR code is now generated server-side and received as base64 image
-// No need for client-side generation anymore
-
 // Check connection status
 function startConnectionCheck() {
     // Check every 2 seconds
@@ -220,6 +212,18 @@ function startConnectionCheck() {
             }
 
             const data = await response.json();
+
+            // 🔄 UPDATE QR CODE IF CHANGED
+            if (data.qrImage) {
+                const qrContainer = document.getElementById('qrCodeContainer');
+                const qrImg = qrContainer ? qrContainer.querySelector('img') : null;
+
+                // Only update if image is different to avoid flickering
+                if (qrImg && qrImg.src !== data.qrImage) {
+                    qrImg.src = data.qrImage;
+                    console.log('🔄 QR Code refreshed');
+                }
+            }
 
             if (data.connected && data.sessionId) {
                 // Connection successful!
