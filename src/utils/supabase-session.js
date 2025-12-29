@@ -39,12 +39,17 @@ export async function uploadSessionToSupabase(authFolder) {
             ])
             .select();
 
-        if (error) throw error;
+        if (error) {
+            // If column session_data doesn't exist, we can't save the full session there.
+            // Just return the session ID or throw to fallback to local
+            console.warn('Supabase Upload Warning:', error.message);
+            throw new Error('Supabase schema incompatible (missing session_data column)');
+        }
 
         return shortId;
     } catch (error) {
-        console.error('Erreur Upload Supabase:', error);
-        throw error;
+        console.error('Erreur Upload Supabase, fallback local requis:', error.message);
+        throw error; // Will be caught by caller to use local ID
     }
 }
 

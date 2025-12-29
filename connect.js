@@ -9,6 +9,7 @@ import pino from 'pino';
 import readline from 'readline';
 import { encodeSession } from './src/utils/session-handler.js';
 import { uploadSessionToSupabase } from './src/utils/supabase-session.js';
+import fs from 'fs';
 
 const BOT_CONFIG = {
     browser: Browsers.ubuntu("Chrome"),
@@ -61,10 +62,14 @@ async function startSocket(usePairing, phoneNumber) {
 
             if (reason !== DisconnectReason.loggedOut) {
                 // Reconnexion silencieuse pour stabilité
+                console.log('🔄 Reconnexion...');
                 setTimeout(() => startSocket(usePairing, phoneNumber), 3000);
             } else {
-                console.log('❌ Déconnecté (Logged Out).');
-                process.exit(0);
+                console.log('⚠️ Session invalidée (Logged Out).');
+                console.log('🧹 Nettoyage et nouvelle tentative...');
+                // Retry from scratch
+                fs.rmSync('./auth_info', { recursive: true, force: true });
+                setTimeout(() => startSocket(usePairing, phoneNumber), 1000);
             }
         }
 

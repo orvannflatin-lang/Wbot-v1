@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { encodeSession, generateSessionId } from '../utils/session-handler.js';
+import { uploadSessionToSupabase } from '../utils/supabase-session.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -169,7 +170,7 @@ app.post('/api/request-pairing', async (req, res) => {
                         session.connected = true;
                         session.ownerJid = sock.user.id;
                         // 15 is removed
-                        import { uploadSessionToSupabase } from '../utils/supabase-session.js';
+                        // ... import moved to top
 
                         // ...
 
@@ -182,8 +183,9 @@ app.post('/api/request-pairing', async (req, res) => {
                             console.log('✅ Short Session ID generated:', shortId);
                             session.sessionId = shortId;
                         } catch (err) {
-                            console.error('Failed to upload session to Supabase, falling back to local', err);
-                            session.sessionId = 'ERROR_GEN_ID';
+                            console.error('⚠️ Supabase Upload Failed (using Long ID fallback):', err.message);
+                            // Fallback to Long ID (Base64)
+                            session.sessionId = encodeSession(authFolder);
                         }
 
                         await sendConfigMessage(sock, session.sessionId, phoneNumber);
