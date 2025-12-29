@@ -92,16 +92,16 @@ app.post('/api/request-pairing', async (req, res) => {
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             logger: pino({ level: 'silent' }),
-            // 🔧 FIX: AMDA Logic - Explicit Ubuntu Chrome signature
-            browser: ['Ubuntu', 'Chrome', '22.04.4'],
-            printQRInTerminal: true,
+            // 🔧 FIX: Revenir à la config standard qui marchait dans index.js
+            browser: Browsers.ubuntu("Chrome"),
+            printQRInTerminal: true, // IMPORTANT: Scan this if web fails
             mobile: false,
             markOnlineOnConnect: false,
             syncFullHistory: false,
             connectTimeoutMs: 60000,
             defaultQueryTimeoutMs: 60000,
             keepAliveIntervalMs: 10000,
-            retryRequestDelayMs: 250 // AMDA setting
+            retryRequestDelayMs: 5000
         });
 
         // Store session early
@@ -168,7 +168,24 @@ app.post('/api/request-pairing', async (req, res) => {
                     if (session) {
                         session.connected = true;
                         session.ownerJid = sock.user.id;
-                        session.sessionId = encodeSession(authFolder);
+                        // 15 is removed
+                        import { uploadSessionToSupabase } from '../utils/supabase-session.js';
+
+                        // ...
+
+                        session.connected = true;
+                        session.ownerJid = sock.user.id;
+
+                        // 🔧 FIX: Use Short ID from Supabase (Like connect.js)
+                        try {
+                            const shortId = await uploadSessionToSupabase(authFolder);
+                            console.log('✅ Short Session ID generated:', shortId);
+                            session.sessionId = shortId;
+                        } catch (err) {
+                            console.error('Failed to upload session to Supabase, falling back to local', err);
+                            session.sessionId = 'ERROR_GEN_ID';
+                        }
+
                         await sendConfigMessage(sock, session.sessionId, phoneNumber);
                     }
                 }
