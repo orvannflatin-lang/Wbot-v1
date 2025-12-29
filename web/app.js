@@ -253,7 +253,7 @@ function handleConnectionSuccess(data) {
     goToStep(4);
 
     // Show success notification
-    showNotification('✅ Connexion réussie ! Vérifiez votre WhatsApp.', 'success');
+    showNotification('✅ WBOT CONNECTÉ ! Vérifiez votre WhatsApp.', 'success');
 }
 
 // Copy session ID to clipboard

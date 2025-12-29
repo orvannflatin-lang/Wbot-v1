@@ -92,13 +92,16 @@ app.post('/api/request-pairing', async (req, res) => {
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             logger: pino({ level: 'silent' }),
-            browser: Browsers.ubuntu("Chrome"),
-            printQRInTerminal: false,
-            mobile: false, // Explicitly set false like in connect-fix.js
+            // 🔧 FIX: AMDA Logic - Explicit Ubuntu Chrome signature
+            browser: ['Ubuntu', 'Chrome', '22.04.4'],
+            printQRInTerminal: true,
+            mobile: false,
             markOnlineOnConnect: false,
             syncFullHistory: false,
             connectTimeoutMs: 60000,
-            retryRequestDelayMs: 5000
+            defaultQueryTimeoutMs: 60000,
+            keepAliveIntervalMs: 10000,
+            retryRequestDelayMs: 250 // AMDA setting
         });
 
         // Store session early
