@@ -140,7 +140,6 @@ NOM_OWNER=${realOwnerName}
 MODE=private
 STICKER_AUTHOR_NAME=${realOwnerName}
 PREFIXE=.
-GEMINI_API_KEY=(Votre Clé Ici)
 \`\`\`
 
 ⚠️ *INSTRUCTIONS* :

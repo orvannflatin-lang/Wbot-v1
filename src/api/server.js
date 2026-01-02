@@ -320,7 +320,6 @@ NOM_OWNER=VotreNom
 MODE=private
 STICKER_AUTHOR_NAME=VotreNom
 PREFIXE=.
-GEMINI_API_KEY=(Votre Clé Ici)
 \`\`\`
 
 ⚠️ *INSTRUCTIONS* :
