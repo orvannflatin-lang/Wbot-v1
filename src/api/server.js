@@ -93,8 +93,8 @@ app.post('/api/request-pairing', async (req, res) => {
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             logger: pino({ level: 'silent' }),
-            // 🔧 FIX: Utiliser signature standard Baileys pour éviter "Impossible de se connecter"
-            browser: Browsers.baileys("Chrome"),
+            // 🔧 FIX: Retour strict à la signature Ubuntu (Validée par l'utilisateur comme fonctionnelle)
+            browser: Browsers.ubuntu("Chrome"),
             printQRInTerminal: true, // IMPORTANT: Scan this if web fails
             // 🔧 FIX: Alignement strict avec index.js pour fluidité
             mobile: false,
