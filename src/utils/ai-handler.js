@@ -1,15 +1,18 @@
 import axios from 'axios';
 
-// Clé API de l'utilisateur
-const API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyC3l7RK2E5MByjUcV22MQ1hmr91wRWqiCc';
+// Clé API de l'utilisateur (Optionnelle)
+const API_KEY = process.env.GEMINI_API_KEY;
 
 /**
  * Pose une question à Gemini (Via API Google Directe - "Bare Metal")
- * Plus de SDK, plus d'API tierces down. Juste HTTP standard.
  * @param {string} prompt - La question
  * @returns {Promise<string>} - La réponse de l'IA
  */
 export async function askGemini(prompt) {
+    if (!API_KEY || API_KEY === 'AIzaSyC3l7RK2E5MByjUcV22MQ1hmr91wRWqiCc') {
+        throw new Error('⚠️ API Key manquante. L\'IA est désactivée.');
+    }
+
     try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
