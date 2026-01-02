@@ -912,22 +912,23 @@ async function handleAutoLike(sock, m) {
 
         console.log(`✅ AutoLike: Cible validée -> ${author.split('@')[0]}`);
 
-        // 3. LOGIQUE OVL: MARQUER LU
+        // 3. LOGIQUE OVL: MARQUER LU (Force Sync)
         await sock.readMessages([m.key]);
-        // console.log('👀 Statut marqué comme vu');
 
         // 4. TIMEOUT (Humaniser)
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // 5. REACT (OVL Style: Simple & Direct)
-        // Utiliser m.key direct
+        // 5. REACT (OVL Style: Distribution Forcée)
+        // On envoie la réaction sur le JID 'status@broadcast'
+        // Mais on force la distribution à soi-même (sock.user.id) pour que le téléphone le voie
+        // Et à l'auteur pour qu'il le reçoive
         await sock.sendMessage('status@broadcast', {
             react: {
                 text: emoji,
                 key: m.key
             }
         }, {
-            statusJidList: [author, sock.user.id] // Force distribution to author + me
+            statusJidList: [author, sock.user.id, myIdRaw + '@s.whatsapp.net'] // Triple sécurité pour la sync
         });
 
         console.log(`💚 AutoLike OVL: ${emoji} envoyé à ${author.split('@')[0]}`);
