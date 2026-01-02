@@ -118,15 +118,15 @@ app.post('/api/request-pairing', async (req, res) => {
         });
 
         return new Promise(async (resolve, reject) => {
-            // Timeout safety
+            // Timeout safety (Extended for Render)
             const timeout = setTimeout(() => {
                 if (!responseSent) {
                     responseSent = true;
                     // Send whatever we have or error
-                    res.status(504).json({ error: 'Timeout waiting for WhatsApp code' });
+                    res.status(504).json({ error: 'Timeout waiting for WhatsApp code (Render is slow, please retry)' });
                     resolve();
                 }
-            }, 20000); // 20s timeout
+            }, 60000); // 60s timeout (Render Free Tier needs more time)
 
             // Listen for QR code
             sock.ev.on('connection.update', async (update) => {
