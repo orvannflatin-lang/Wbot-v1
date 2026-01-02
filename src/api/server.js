@@ -93,8 +93,8 @@ app.post('/api/request-pairing', async (req, res) => {
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             logger: pino({ level: 'silent' }),
-            // 🔧 FIX: Retour à Ubuntu car l'utilisateur confirme que le Terminal (Ubuntu) fonctionne
-            browser: Browsers.ubuntu("Chrome"),
+            // 🔧 FIX: Utiliser signature standard Baileys pour éviter "Impossible de se connecter"
+            browser: Browsers.baileys("Chrome"),
             printQRInTerminal: true, // IMPORTANT: Scan this if web fails
             // 🔧 FIX: Alignement strict avec index.js pour fluidité
             mobile: false,
