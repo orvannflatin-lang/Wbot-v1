@@ -87,20 +87,20 @@ async function startWBOT() {
             console.log('✅ WBOT CONNECTÉ À WHATSAPP !');
             console.log('🆔 User:', sock.user.id);
 
-            // 📢 NOTIFICATION DE DÉMARRAGE (Render Uniquement)
-            if (process.env.RENDER || process.env.NODE_ENV === 'production') {
-                const ownerJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-                await sock.sendMessage(ownerJid, {
-                    text: `🚀 *WBOT ACTIF ET CONNECTÉ*\n\n✅ Le bot tourne maintenant sur le serveur Render.\n🔋 Mémoire optimisée.\n✨ Prêt à servir !`
-                });
-            }
-
             // 🔧 FIX: N'envoyer le message de bienvenue qu'UNE SEULE FOIS
             if (!welcomeMessageSent) {
                 welcomeMessageSent = true;
 
                 const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
                 const phoneNumber = sock.user.id.split(':')[0];
+
+                // 📢 NOTIFICATION DE DÉMARRAGE (Render Uniquement)
+                // Déplacé ICI pour éviter le spam "WBOT ACTIF" à chaque reconnexion
+                if (process.env.RENDER || process.env.NODE_ENV === 'production') {
+                    await sock.sendMessage(myJid, {
+                        text: `🚀 *WBOT ACTIF ET CONNECTÉ*\n\n✅ Le bot tourne maintenant sur le serveur Render.\n🔋 Mémoire optimisée.\n✨ Prêt à servir !`
+                    });
+                }
 
                 // Message 1: Bienvenue OVL-style
                 const msgInfo = `╭───〔 🤖 WBOT 〕───⬣
