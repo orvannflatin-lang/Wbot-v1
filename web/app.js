@@ -186,11 +186,18 @@ async function requestQRCode() {
             // Start checking connection
             startConnectionCheck();
         } else if (data.code) {
-            // Fallback to pairing code
-            showNotification('QR non disponible, utilisez le code de pairage', 'info');
-            await displayPairingCode(data.code, data.sessionId);
+            // 🔧 FIX: Disable auto-fallback. User wants QR.
+            // Only show pairing code if we are NOT in strict QR mode (or if user switches)
+            // For now, we treat this as a "Wait/Retry" scenario for QR
+            if (method === 'qr') {
+                // Retry or show error, do NOT switch to pairing
+                console.log('Received pairing code but wanted QR. Ignoring/Retrying...');
+                throw new Error('QR Code not fully generated yet. Retrying...');
+            } else {
+                await displayPairingCode(data.code, data.sessionId);
+            }
         } else {
-            throw new Error('No QR or pairing code received');
+            throw new Error('No QR code received (Timeout)');
         }
 
     } catch (error) {
