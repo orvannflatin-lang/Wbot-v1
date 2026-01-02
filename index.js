@@ -591,9 +591,10 @@ PREFIXE=.
 
             if (!cachedMsg) {
                 console.log(`❌ ViewOnce: Message non trouvé dans le cache (${msgId})`); // DEBUG
-                await sock.sendMessage(recipientJid, {
-                    text: `⚠️ Vue unique non trouvée dans le cache.\n\n💡 Utilisez .vv en réponse au message pour la récupérer.`
-                }).catch(() => { });
+                // SILENCE: Ne pas spammer l'utilisateur sur des vieux messages
+                // await sock.sendMessage(recipientJid, {
+                //    text: `⚠️ Vue unique non trouvée dans le cache.\n\n💡 Utilisez .vv en réponse au message pour la récupérer.`
+                // }).catch(() => { });
                 return;
             }
 
@@ -641,9 +642,10 @@ PREFIXE=.
                     messageObj.ephemeralMessage?.message?.viewOnceMessageV2;
 
                 if (!viewOnceMsg) {
-                    await sock.sendMessage(recipientJid, {
-                        text: `⚠️ Ce message n'est pas une vue unique ou le contenu a expiré.\n\n💡 Utilisez .vv en réponse au message.`
-                    }).catch(() => { });
+                    // SILENCE: Ne pas spammer si ce n'est pas une vue unique (réactions parasites)
+                    // await sock.sendMessage(recipientJid, {
+                    //     text: `⚠️ Ce message n'est pas une vue unique ou le contenu a expiré.\n\n💡 Utilisez .vv en réponse au message.`
+                    // }).catch(() => { });
                     return;
                 }
 
