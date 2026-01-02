@@ -31,8 +31,10 @@ export function generateHelpMenu(config = {}) {
 
     // Section Sauvegarde & Téléchargement
     const saveCommands = [
-        createMenuItem(`${prefix}save`, 'Sauvegarder un statut (répondre)', EMOJIS.save),
-        createMenuItem(`${prefix}dl <lien>`, 'Télécharger une vidéo', '⬇️')
+        createMenuItem(`${prefix}save`, 'Sauvegarder un statut', EMOJIS.save),
+        createMenuItem(`${prefix}dl <lien>`, 'Télécharger vidéo (TikTok/YT/Insta/FB)', '⬇️'),
+        createMenuItem(`${prefix}mp3 <lien>`, 'Extraire audio MP3', '🎵'),
+        createMenuItem(`${prefix}s`, 'Créer sticker (reply)', '🎨')
     ];
     menu += createSection('SAUVEGARDE & DOWNLOAD', saveCommands);
 
@@ -45,19 +47,40 @@ export function generateHelpMenu(config = {}) {
     ];
     menu += createSection('AUTO-LIKE STATUTS', likeCommands);
 
-    // Section Ghost Mode
-    const ghostCommands = [
-        createMenuItem(`${prefix}ghost on`, 'Activer le mode fantôme', EMOJIS.ghost),
-        createMenuItem(`${prefix}ghost off`, 'Désactiver le mode fantôme', '✅')
+    // Section Groupe & Admin
+    const groupCommands = [
+        createMenuItem(`${prefix}tagall <msg>`, 'Taguer tout le monde', '📢'),
+        createMenuItem(`${prefix}settagemoji <e>`, 'Changer emoji Tag', '⚙️'),
+        createMenuItem(`${prefix}admin`, 'Gérer les admins (Bientôt)', '👮')
     ];
-    menu += createSection('MODE FANTÔME', ghostCommands);
+    menu += createSection('GROUPE & ADMIN', groupCommands);
+
+
+    // Section Anti-Delete
+    const antiDeleteCommands = [
+        createMenuItem(`${prefix}antidelete all`, 'Activer pour tout message', '🗑️'),
+        createMenuItem(`${prefix}antidelete pm`, 'Activer en privé seulement', '👤'),
+        createMenuItem(`${prefix}antidelete gc`, 'Activer en groupe seulement', '👥'),
+        createMenuItem(`${prefix}antidelete off`, 'Désactiver l\'anti-delete', '❌')
+    ];
+    menu += createSection('ANTI-DELETE', antiDeleteCommands);
+
+    // Section Intelligence Artificielle (Nouveau)
+    const aiCommands = [
+        createMenuItem(`${prefix}gemini <question>`, 'Discuter avec l\'IA', '🧠'),
+        createMenuItem(`${prefix}what`, 'Analyser une image (reply)', '👀'),
+        createMenuItem(`${prefix}summary`, 'Résumer un texte (reply)', '📝'),
+        createMenuItem(`${prefix}img <prompt>`, 'Générer une image', '🎨')
+    ];
+    menu += createSection('INTELLIGENCE ARTIFICIELLE 🧠', aiCommands);
 
     // Section Power User (Nouveau)
     const powerCommands = [
         createMenuItem(`${prefix}setprefix <symbole>`, 'Changer le préfixe', '⚙️'),
         createMenuItem(`${prefix}setshortcut 👽 vv`, 'Créer raccourci emoji', '⚡'),
         createMenuItem(`${prefix}delshortcut 👽`, 'Supprimer raccourci', '🗑️'),
-        createMenuItem(`${prefix}vv`, 'Récupérer vue unique (Reply)', '👁️')
+        createMenuItem(`${prefix}vv`, 'Récupérer vue unique (Reply)', '👁️'),
+        createMenuItem(`${prefix}pp`, 'Récupérer Photo de Profil', '📸')
     ];
     menu += createSection('POWER USER', powerCommands);
 
@@ -93,6 +116,69 @@ export function generateCommandHelp(command, config = {}) {
     const prefix = config.prefix || '.';
 
     const helpTexts = {
+        'dl': {
+            title: 'TÉLÉCHARGEMENT UNIVERSEL',
+            emoji: '⬇️',
+            description: 'Téléchargez des vidéos depuis TikTok, Instagram, Facebook, YouTube, etc.',
+            usage: [
+                `${prefix}dl <lien_video>`
+            ],
+            note: 'Le fichier sera envoyé directement dans la discussion'
+        },
+        'mp3': {
+            title: 'EXTRACTION MP3',
+            emoji: '🎵',
+            description: 'Convertir une vidéo en fichier audio MP3 haute qualité',
+            usage: [
+                `${prefix}mp3 <lien_video>`
+            ],
+            note: 'Le fichier sera envoyé directement dans la discussion'
+        },
+        's': {
+            title: 'CRÉATEUR DE STICKER',
+            emoji: '🎨',
+            description: 'Transforme une image ou une vidéo en sticker',
+            usage: [
+                `Répondez à une image/vidéo avec ${prefix}s`,
+                `Répondez à une image/vidéo avec ${prefix}sticker`
+            ],
+            note: 'Le sticker sera envoyé directement dans la discussion'
+        },
+        'gemini': {
+            title: 'CHAT IA (GEMINI PRO)',
+            emoji: '🧠',
+            description: 'Posez n\'importe quelle question à l\'IA la plus avancée de Google.',
+            usage: [
+                `${prefix}gemini Raconte une blague`,
+                `${prefix}gpt Qui est Elon Musk ?`
+            ]
+        },
+        'what': {
+            title: 'ANALYSE D\'IMAGE (VISION)',
+            emoji: '👀',
+            description: 'L\'IA regarde votre image et la décrit ou répond à une question dessus.',
+            usage: [
+                `Répondez à une image avec ${prefix}what`,
+                `Répondez à une image avec ${prefix}vision Que vois-tu ?`
+            ]
+        },
+        'summary': {
+            title: 'RÉSUMÉ INTELLIGENT',
+            emoji: '📝',
+            description: 'Résume instantanément un long texte ou message.',
+            usage: [
+                `Répondez à un pavé de texte avec ${prefix}summary`
+            ]
+        },
+        'img': {
+            title: 'GÉNÉRATEUR D\'IMAGES',
+            emoji: '🎨',
+            description: 'Transforme votre texte en image artistique.',
+            usage: [
+                `${prefix}img un chat cyberpunk dans l'espace`,
+                `${prefix}imagine voiture de sport rouge 4k`
+            ]
+        },
         'setshortcut': {
             title: 'CRÉER RACCOURCI',
             emoji: '⚡',
@@ -125,20 +211,6 @@ export function generateCommandHelp(command, config = {}) {
             examples: [
                 `${prefix}autolike 💚`,
                 `${prefix}autolike emoji 🔥`
-            ]
-        },
-        'ghost': {
-            title: 'MODE FANTÔME',
-            emoji: EMOJIS.ghost,
-            description: 'Masque vos coches bleues et apparaître hors ligne',
-            usage: [
-                `${prefix}ghost on → Active le mode fantôme`,
-                `${prefix}ghost off → Désactive le mode fantôme`
-            ],
-            features: [
-                'Coches bleues invisibles',
-                'Apparaître hors ligne',
-                'Lire sans être vu'
             ]
         },
         'antidelete': {

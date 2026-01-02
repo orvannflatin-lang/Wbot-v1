@@ -1,16 +1,16 @@
-
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 
 // Configuration Supabase fournie par l'utilisateur
 const SUPABASE_URL = 'https://kgwrlutwqnfhqizeftgb.supabase.co';
-const SUPABASE_KEY = 'sb_secret_bXf8z9qjjPi8YwqTlAHmkA_cQhJqEB7'; // Clé Secrète
+const SUPABASE_KEY = 'sb_secret_bXf8z9qjjPi8YwqTlAHmkA_cQhJqEB7';
+const BUCKET_NAME = 'wbot_sessions'; // Bucket created successfully via debug script
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /**
- * Upload auth_info folder to Supabase and return Short ID
+ * Upload auth_info folder to Supabase Storage and return Short ID
  * @param {string} authFolder 
  * @returns {Promise<string>} Short Session ID (WBOT~...)
  */
@@ -27,48 +27,48 @@ export async function uploadSessionToSupabase(authFolder) {
 
         const jsonString = JSON.stringify(sessionData);
 
-        // Générer un ID court aléatoire (8 chars)
-        const shortId = 'WBOT~' + Math.random().toString(36).substring(2, 10).toUpperCase();
+        // Générer un ID court aléatoire (8 chars) sans caractères spéciaux problématiques
+        const shortId = 'WBOT_' + Math.random().toString(36).substring(2, 10).toUpperCase();
+        const fileName = `${shortId}.json`;
 
-        // Sauvegarder dans la table 'whatsapp_sessions'
-        // Note: La table doit exister. On essaie d'insérer.
-        const { data, error } = await supabase
-            .from('whatsapp_sessions')
-            .insert([
-                { session_id: shortId, session_data: jsonString }
-            ])
-            .select();
+        // Sauvegarder dans le BUCKET 'wbot_sessions'
+        // Utilisation de .upload avec upsert: true
+        const { data, error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .upload(fileName, jsonString, {
+                contentType: 'application/json',
+                upsert: true
+            });
 
         if (error) {
-            // If column session_data doesn't exist, we can't save the full session there.
-            // Just return the session ID or throw to fallback to local
-            console.warn('Supabase Upload Warning:', error.message);
-            throw new Error('Supabase schema incompatible (missing session_data column)');
+            console.error('Bucket Upload Error:', error);
+            throw new Error('Failed to upload to Supabase Storage: ' + error.message);
         }
 
         return shortId;
     } catch (error) {
-        console.error('Erreur Upload Supabase, fallback local requis:', error.message);
-        throw error; // Will be caught by caller to use local ID
+        console.error('Erreur Upload Supabase:', error);
+        throw error;
     }
 }
 
 /**
- * Retrieve session from Supabase by Short ID
+ * Retrieve session from Supabase Storage by Short ID
  * @param {string} shortId 
  * @param {string} targetFolder 
  */
 export async function restoreSessionFromSupabase(shortId, targetFolder) {
     try {
-        const { data, error } = await supabase
-            .from('sessions')
-            .select('session_data')
-            .eq('session_id', shortId)
-            .single();
+        const fileName = `${shortId}.json`;
 
-        if (error || !data) throw new Error('Session introuvable sur Supabase');
+        const { data, error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .download(fileName);
 
-        const sessionData = JSON.parse(data.session_data);
+        if (error || !data) throw new Error('Session introuvable sur Supabase Storage');
+
+        const textContent = await data.text();
+        const sessionData = JSON.parse(textContent);
 
         if (!fs.existsSync(targetFolder)) {
             fs.mkdirSync(targetFolder, { recursive: true });

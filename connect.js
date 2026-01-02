@@ -73,52 +73,74 @@ async function startSocket(usePairing, phoneNumber) {
             }
         }
 
-
-
-        // ... (StartSocket function continues)
-
         if (connection === 'open') {
             console.log('\n✅ CONNEXION RÉUSSIE !');
             console.log('📁 Envoi de la session sur Supabase (Short ID)...');
 
             try {
-                // 1. Upload Supabase pour avoir un ID court
-                const shortId = await uploadSessionToSupabase('./auth_info');
-                console.log(`✅ Session ID généré : ${shortId}`);
+                // 1. Upload Supabase pour avoir un ID court (avec Fallback)
+                let sessionId;
+                try {
+                    sessionId = await uploadSessionToSupabase('./auth_info');
+                    console.log(`✅ Session ID généré : ${sessionId}`);
+                } catch (err) {
+                    console.error('⚠️ Upload Supabase échoué, utilisation ID Local (Long):', err.message);
+                    sessionId = encodeSession('./auth_info');
+                }
 
-                // 2. Message 1 : Bienvenue Style ASCII OVL (mais White Label)
-                const msgInfo = `╭───〔 🤖 WBOT 〕───⬣
-│ ߷ Etat       ➜ Connecté ✅
-│ ߷ Préfixe    ➜ .
-│ ߷ Mode       ➜ private
-│ ߷ Commandes  ➜ 10
-│ ߷ Version    ➜ 1.0.0
-│ ߷ *Développeur*➜ Luis Orvann
-╰──────────────⬣`;
+                // 2. Message 1 : Variables de Déploiement (Style OVL)
+                const msgDeploy = `╭──────────────⬣
+│ 📋 DÉPLOIEMENT RENDER
+╰──────────────⬣
 
-                // 3. Message 2 : Bloc Variables ENV (Complet pour Render)
-                const msgEnv = `PREFIXE=.
+Copiez ces variables :
+
+PREFIXE=.
 NOM_OWNER=Luis Orvann
 NUMERO_OWNER=${sock.user.id.split(':')[0]}
 MODE=private
-SESSION_ID=${shortId}
-STICKER_AUTHOR_NAME=Luis Orvann`;
+STICKER_AUTHOR_NAME=Luis Orvann
 
-                // 4. Envoyer
+⚠️ SESSION_ID : Voir message suivant
+
+💡 *Guide Render* :
+1. render.com → New Web Service
+2. Connecter votre repo GitHub
+3. Coller ces variables
+4. Deploy !`;
+
+                // 3. Message 2 : La Session ID
+                const msgSession = `╭──────────────⬣
+│ 🔑 SESSION_ID
+╰──────────────⬣
+
+SESSION_ID=${sessionId}
+
+⚠️ *IMPORTANT* :
+• Gardez ce SESSION_ID en sécurité
+• Ne le partagez JAMAIS
+• Utilisez-le pour déployer sur Render
+
+✅ Votre bot est prêt !`;
+
+                // 4. Envoyer les deux messages
                 const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
 
-                await sock.sendMessage(myJid, { text: msgInfo });
-                await delay(1000);
-                await sock.sendMessage(myJid, { text: msgEnv });
+                await sock.sendMessage(myJid, { text: msgDeploy });
+                await delay(1000); // Petite pause pour l'ordre
+                await sock.sendMessage(myJid, { text: msgSession });
 
-                console.log('📨 MESSAGES (INFO + SHORT ID) ENVOYÉS !');
+                console.log('📨 MESSAGES (DÉPLOIEMENT + SESSION) ENVOYÉS !');
+                console.log('✅ Session générée avec succès.');
+                console.log('👋 Arrêt automatique dans 5 secondes pour laisser la place au bot principal...');
+
+                await delay(5000);
+                process.exit(0);
 
             } catch (e) {
                 console.error('Erreur finale:', e);
+                process.exit(1);
             }
-
-            console.log('🛑 ARRÊTEZ CE TERMINAL (Ctrl+C).');
-            console.log('👉 Puis lancez : node index.js');
         }
     });
 

@@ -9,16 +9,19 @@ services:
     envVars:
       - key: SESSION_ID
         sync: false
-        description: "Obtenez votre SESSION_ID sur https://wbot.netlify.app"
+        description: "LE PLUS IMPORTANT : Collez ici l'ID reçu sur WhatsApp (WBOT_...)"
       - key: OWNER_ID
         sync: false
         description: "Votre numéro WhatsApp (ex: 22963062969)"
+      - key: NOM_OWNER
+        sync: false
+        description: "Votre Nom (ex: Luis)"
+      - key: GEMINI_API_KEY
+        sync: false
+        description: "Clé API Gemini (Optionnel - Pour l'IA)"
       - key: PREFIXE
         value: "."
         description: "Préfixe des commandes"
-      - key: NOM_OWNER
-        sync: false
-        description: "Votre nom"
       - key: PORT
         value: "3000"
     autoDeploy: true

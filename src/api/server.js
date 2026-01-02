@@ -93,7 +93,7 @@ app.post('/api/request-pairing', async (req, res) => {
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             logger: pino({ level: 'silent' }),
-            // 🔧 FIX: Revenir à la config standard qui marchait dans index.js
+            // 🔧 FIX: Retour à Ubuntu car l'utilisateur confirme que le Terminal (Ubuntu) fonctionne
             browser: Browsers.ubuntu("Chrome"),
             printQRInTerminal: true, // IMPORTANT: Scan this if web fails
             mobile: false,
@@ -308,37 +308,26 @@ Félicitations ! Votre bot WhatsApp est maintenant connecté avec succès.
 
         // Message 2: Configuration
         const configMessage = `╭──────────────⬣
-│ 📋 *VOS INFORMATIONS DE DÉPLOIEMENT*
+│ ⚙️ *CONFIG RENDER*
 ╰──────────────⬣
 
-⚠️ *IMPORTANT* : Copiez ces informations pour déployer votre bot sur Render.
-
-━━━━━━━━━━━━━━━━━━
-*VARIABLES D'ENVIRONNEMENT :*
-━━━━━━━━━━━━━━━━━━
+Copiez TOUT ce bloc pour vos variables :
 
 \`\`\`
 SESSION_ID=${sessionId}
-
 OWNER_ID=${phoneNumber}
-
-PREFIXE=.
-
 NOM_OWNER=VotreNom
+MODE=private
+STICKER_AUTHOR_NAME=VotreNom
+PREFIXE=.
+GEMINI_API_KEY=(Votre Clé Ici)
 \`\`\`
 
-━━━━━━━━━━━━━━━━━━
-*ÉTAPES DE DÉPLOIEMENT :*
-━━━━━━━━━━━━━━━━━━
-
-1️⃣ Allez sur render.com
-2️⃣ Cliquez "New +" → "Web Service"  
-3️⃣ Connectez ce repo GitHub :
-   https://github.com/VOTRE_USERNAME/WBOT
-
-4️⃣ Ajoutez les variables ci-dessus
-5️⃣ Cliquez "Create Web Service"
-6️⃣ ✅ Votre bot sera en ligne 24/7 !
+⚠️ *INSTRUCTIONS* :
+1. Allez sur Render > Blueprint > New
+2. Connectez GitHub
+3. Collez ce SESSION_ID quand demandé
+4. Deploy ! 🚀
 
 ━━━━━━━━━━━━━━━━━━
 *COMMANDES DU BOT :*

@@ -20,6 +20,7 @@
   "author": "WBOT Team",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@supabase/supabase-js": "^2.39.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "axios": "^1.6.0",
@@ -27,12 +28,14 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.18.2",
+    "fluent-ffmpeg": "^2.1.2",
     "link-preview-js": "^3.0.5",
     "node-cron": "^3.0.3",
     "pino": "^9.6.0",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "sequelize": "^6.37.5",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "wa-sticker-formatter": "^4.4.4"
   }
 }

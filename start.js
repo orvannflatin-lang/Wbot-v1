@@ -13,31 +13,19 @@ async function start() {
     console.log('╰──────────────────────╯\n');
 
     const SESSION_ID = process.env.SESSION_ID;
+    const hasLocalSession = fs.existsSync('./auth_info') && fs.readdirSync('./auth_info').length > 0;
 
-    if (SESSION_ID) {
-        console.log('📋 Mode: BOT (Session détectée)');
-
-        try {
-            if (SESSION_ID.startsWith('WBOT~')) {
-                // CAS 1: Session Courte (Supabase)
-                console.log('☁️ Récupération depuis Supabase...');
-                await restoreSessionFromSupabase(SESSION_ID, './auth_info');
-            } else if (SESSION_ID.startsWith('WBOT_')) {
-                // CAS 2: Session Longue (Base64/GZIP)
-                console.log('🔄 Décodage session locale...');
-                decodeSession(SESSION_ID, './auth_info');
-            }
-
-            console.log('✅ Session restaurée\n');
-
-            // Import and start the bot
-            const { default: startWBOT } = await import('./index.js');
-            await startWBOT();
-        } catch (error) {
-            console.error('❌ Erreur de restauration session:', error.message);
-            console.error('💡 Vérifiez votre SESSION_ID\n');
-            process.exit(1);
+    if (SESSION_ID || hasLocalSession) {
+        if (hasLocalSession && !SESSION_ID) {
+            console.log('📋 Mode: BOT (Session locale détectée)');
+        } else {
+            console.log('📋 Mode: BOT (Session ID détecté)');
         }
+
+        // Lancer directement index.js sans validation préalable
+        // index.js gère lui-même la restauration et les erreurs
+        console.log('🚀 Démarrage du bot...\n');
+        await import('./index.js');
     } else {
         // MODE: API Server (First-time setup)
         console.log('📋 Mode: API SERVER (Première configuration)');

@@ -12,6 +12,10 @@ RUN apk add --no-cache git python3 make g++
 # Install dependencies
 RUN npm install --only=production
 
+# Install runtime media tools (ffmpeg, python for yt-dlp)
+RUN apk add --no-cache ffmpeg python3 py3-pip && \
+    pip3 install yt-dlp --break-system-packages
+
 # Stage 2: Runtime
 FROM node:20-alpine
 
