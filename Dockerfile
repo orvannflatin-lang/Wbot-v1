@@ -12,14 +12,24 @@ RUN apk add --no-cache git python3 make g++
 # Install dependencies
 RUN npm install --only=production
 
-# Install runtime media tools (ffmpeg, python for yt-dlp)
-RUN apk add --no-cache ffmpeg python3 py3-pip && \
-    pip3 install yt-dlp --break-system-packages
-
 # Stage 2: Runtime
 FROM node:20-alpine
 
 WORKDIR /app
+
+# Install runtime dependencies (ffmpeg, python for yt-dlp, sqlite libs)
+RUN apk add --no-cache \
+  ffmpeg \
+  python3 \
+  py3-pip \
+  libstdc++ \
+  vips-dev \
+  fftw-dev \
+  gcc \
+  g++ \
+  make \
+  libc6-compat && \
+  pip3 install yt-dlp --break-system-packages
 
 # Copy node_modules from builder
 COPY --from=builder /app/node_modules ./node_modules
@@ -29,6 +39,9 @@ COPY . .
 
 # Create necessary directories
 RUN mkdir -p temp_sessions downloads auth_info
+
+# Rebuild sqlite3 for the runtime environment to ensure bindings work
+RUN npm rebuild sqlite3
 
 # Expose port
 EXPOSE 3000
