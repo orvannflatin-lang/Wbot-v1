@@ -45,35 +45,19 @@ export const startApiServer = (app) => {
             const { version, isLatest } = await fetchLatestBaileysVersion();
             console.log(`🤖 Baileys v${version.join('.')} (Latest: ${isLatest})`);
 
-            // Create socket
+            // Create socket (Minimal config matching test-connect.js)
             const sock = makeWASocket({
-                version, // USE THE FETCHED VERSION
+                version,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'info' })) // Enable logs for debug
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
                 },
-                logger: pino({ level: 'info' }), // Enable logs for debug
-                // 🔧 FIX: Change Browser to macOS to bypass "Impossible to connect"
-                browser: Browsers.macOS("Desktop"),
-
-                // 🚀 LIGHTWEIGHT CONNECTION MODE
-                syncFullHistory: false, // Keep false for Render speed
-                maxChatMessages: 10,
-                maxChatMessages: 10,
-
-                // Stub getMessage
-                getMessage: async (key) => {
-                    return { conversation: 'OVL-BOT' };
-                },
-
-                // ⏳ TIMEOUTS
-                connectTimeoutMs: 60000, // Revert to 60s (90s might be too long for heartbeat)
+                logger: pino({ level: 'silent' }), // Silent logs to match test-connect
+                printQRInTerminal: false, // Managed manually
+                browser: Browsers.macOS("Desktop"), // The working signature
+                connectTimeoutMs: 60000,
                 defaultQueryTimeoutMs: 60000,
-                keepAliveIntervalMs: 10000,
-                retryRequestDelayMs: 5000,
-
-                markOnlineOnConnect: false,
-                generateHighQualityLinkPreview: false
+                // Removed all other complex "expert" params that were causing issues
             });
 
             // Store session early
