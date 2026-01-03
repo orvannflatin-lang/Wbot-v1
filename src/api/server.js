@@ -69,37 +69,27 @@ export const startApiServer = (app) => {
             }
 
             // Create auth state
-            // 🔧 FIX: OVL Logic (Strict Copy)
-            const { version } = await fetchLatestBaileysVersion();
             const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
             // Debug wrapper to confirm saving
             const saveCredsDebug = (params) => {
-                console.log('💾 Saving connection credentials (OVL Mode)...');
+                console.log('💾 Saving connection credentials...');
                 return saveCreds(params);
             };
 
-            // OVL Configuration
+            // ✅ EXACT CONFIG FROM connect.js (TESTED & WORKING)
             const sock = makeWASocket({
-                version,
-                logger: pino({ level: 'silent' }),
-                printQRInTerminal: false,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })),
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
                 },
-                // OVL strict browser signature
-                browser: ['Ubuntu', 'Chrome', '20.0.04'],
-                syncFullHistory: true,
-                shouldSyncHistoryMessage: () => true,
+                logger: pino({ level: 'silent' }),
+                browser: Browsers.ubuntu("Chrome"),    // ← Fonction, pas array
                 markOnlineOnConnect: false,
-                receivedPendingNotifications: true,
-                // Stub getMessage to avoid errors with store
-                getMessage: async () => { return undefined; },
-                connectTimeoutMs: 150000,
-                defaultQueryTimeoutMs: 150000,
-                keepAliveIntervalMs: 10000,
-                generateHighQualityLinkPreview: true
+                syncFullHistory: false,                // ← FALSE (différence critique!)
+                printQRInTerminal: false,
+                connectTimeoutMs: 60000,               // ← 60s comme connect.js
+                keepAliveIntervalMs: 10000
             });
 
             // Assign to global variable for future cleanup
@@ -244,8 +234,8 @@ export const startApiServer = (app) => {
                 if (method === 'pairing') {
                     try {
                         console.log('📱 Requesting pairing code for:', phoneNumber);
-                        // Delay slightly to let socket init
-                        await delay(2000);
+                        // ⏳ OVL CRITICAL DELAY (Increased to 5s for anti-spam)
+                        await delay(5000);
 
                         if (!sock.authState.creds.registered) {
                             pairingCode = await sock.requestPairingCode(phoneNumber);
