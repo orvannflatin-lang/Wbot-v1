@@ -43,7 +43,6 @@ export const startApiServer = (app) => {
         }
 
         const { phoneNumber, method } = req.body;
-        const { phoneNumber, method } = req.body;
         // Use a FIXED folder for pairing to ensure stability/permissions
         const authFolder = `./auth_info_pairing`;
         const tempSessionId = `temp-${Date.now()}`;
