@@ -353,12 +353,9 @@ PREFIXE=.
     }
 }
 
-// Start server
-export function startApiServer() {
-    app.listen(PORT, () => {
-        console.log(`\n🌐 API Server running on port ${PORT}`);
-        console.log(`📡 Health check: http://localhost:${PORT}/api/health\n`);
-    });
-}
+// Start server removed (handled by start.js via app export)
+// app.listen moved to start.js or handled by startApiServer call if needed, but here we just export app or function.
+// Actually, start.js imports startApiServer and calls it.
+// The top definition is correct. This one is closing the file.
 
 export default app;
