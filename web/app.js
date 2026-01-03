@@ -185,6 +185,10 @@ async function requestQRCode() {
 
             // Start checking connection
             startConnectionCheck();
+
+            // Update status text
+            const statusText = document.getElementById('qrStatusText');
+            if (statusText) statusText.textContent = "En attente de connexion...";
         } else if (data.code) {
             // 🔧 FIX: Disable auto-fallback. User wants QR.
             // Only show pairing code if we are NOT in strict QR mode (or if user switches)
