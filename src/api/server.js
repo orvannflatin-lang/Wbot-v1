@@ -64,6 +64,12 @@ export const startApiServer = (app) => {
 
             // Create auth state
             const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+
+            // Debug wrapper to confirm saving
+            const saveCredsDebug = (params) => {
+                console.log('💾 Saving connection credentials...');
+                return saveCreds(params);
+            };
             // REMOVED fetchLatestBaileysVersion to match test-connect.js
 
             // Create socket (Strictly matching test-connect.js)
