@@ -23,14 +23,21 @@ export const startApiServer = (app) => {
     // API endpoint to request pairing code or QR
     app.post('/api/request-pairing', async (req, res) => {
         // 🛑 CLEANUP: If a previous socket exists, kill it to prevent conflicts
-        if (globalPairingSock) {
-            console.log('⚠️ Closing previous pairing socket...');
-            try {
-                globalPairingSock.end(undefined);
+        try {
+            if (globalPairingSock) {
+                console.log('⚠️ Closing previous pairing socket...');
+                // Check if end function exists before calling
+                if (typeof globalPairingSock.end === 'function') {
+                    globalPairingSock.end(undefined);
+                } else if (globalPairingSock.ws && typeof globalPairingSock.ws.close === 'function') {
+                    // Fallback to ws.close if end() is missing (unlikely in Baileys but possible)
+                    globalPairingSock.ws.close();
+                }
                 globalPairingSock = null;
-            } catch (e) {
-                console.error('Error closing previous socket:', e);
             }
+        } catch (e) {
+            console.error('Error closing previous socket (ignored):', e);
+            globalPairingSock = null; // Force null to proceed
         }
 
         const { phoneNumber, method } = req.body;
@@ -69,7 +76,7 @@ export const startApiServer = (app) => {
                 defaultQueryTimeoutMs: 60000,
                 // Removed all other complex "expert" params that were causing issues
             });
-            
+
             // Assign to global variable for future cleanup
             globalPairingSock = sock;
 
