@@ -93,11 +93,13 @@ app.post('/api/request-pairing', async (req, res) => {
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             logger: pino({ level: 'silent' }),
-            // 🔧 FIX: Retour strict à la signature Ubuntu (Validée par l'utilisateur comme fonctionnelle)
-            browser: Browsers.ubuntu("Chrome"),
-            printQRInTerminal: true, // IMPORTANT: Scan this if web fails
+            // 🔧 FIX: Utiliser la logique OVL (connect-pairing.js) pour résoudre "Impossible de se connecter"
+            browser: Browsers.macOS("Desktop"),
+            printQRInTerminal: true,
+            mobile: false,
+            // OVL logic désactive la synchro complète pour éviter les timeouts initiaux
+            syncFullHistory: false,
             markOnlineOnConnect: true,
-            syncFullHistory: true,
             generateHighQualityLinkPreview: true,
             connectTimeoutMs: 60000,
             keepAliveIntervalMs: 10000
