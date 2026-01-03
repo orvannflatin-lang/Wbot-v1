@@ -93,16 +93,19 @@ app.post('/api/request-pairing', async (req, res) => {
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             logger: pino({ level: 'silent' }),
-            // 🔧 FIX: Utiliser la logique OVL (connect-pairing.js) pour résoudre "Impossible de se connecter"
-            browser: Browsers.macOS("Desktop"),
+            // 🔧 FIX: Logique "AMDA" / "OVL" (Signature Array explicite + Timeouts longs)
+            browser: ['Ubuntu', 'Chrome', '20.0.04'],
             printQRInTerminal: true,
             mobile: false,
-            // OVL logic désactive la synchro complète pour éviter les timeouts initiaux
-            syncFullHistory: false,
-            markOnlineOnConnect: true,
+            // OVL Params
+            syncFullHistory: true, // OVL met true finalement
+            markOnlineOnConnect: true, // Important pour être "vu"
             generateHighQualityLinkPreview: true,
-            connectTimeoutMs: 60000,
-            keepAliveIntervalMs: 10000
+            receivedPendingNotifications: true, // OVL specific
+            connectTimeoutMs: 150000, // 150s (OVL)
+            defaultQueryTimeoutMs: 150000,
+            keepAliveIntervalMs: 10000,
+            retryRequestDelayMs: 5000
         });
 
         // Store session early
