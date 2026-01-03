@@ -96,15 +96,11 @@ app.post('/api/request-pairing', async (req, res) => {
             // 🔧 FIX: Retour strict à la signature Ubuntu (Validée par l'utilisateur comme fonctionnelle)
             browser: Browsers.ubuntu("Chrome"),
             printQRInTerminal: true, // IMPORTANT: Scan this if web fails
-            // 🔧 FIX: Alignement strict avec index.js pour fluidité
-            mobile: false,
             markOnlineOnConnect: true,
             syncFullHistory: true,
             generateHighQualityLinkPreview: true,
             connectTimeoutMs: 60000,
-            defaultQueryTimeoutMs: 60000,
-            keepAliveIntervalMs: 10000,
-            retryRequestDelayMs: 5000
+            keepAliveIntervalMs: 10000
         });
 
         // Store session early
