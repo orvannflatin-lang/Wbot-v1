@@ -76,7 +76,11 @@ export const startApiServer = (app) => {
             });
 
             // Assign to global variable for future cleanup
+            // Assign to global variable for future cleanup
             globalPairingSock = sock;
+
+            // ⚠️ CRITICAL MISSING LISTENER: Save credentials on update
+            sock.ev.on('creds.update', saveCreds);
 
             // Store session early
             activeSessions.set(tempSessionId, {
