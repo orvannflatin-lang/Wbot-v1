@@ -21,12 +21,12 @@ let globalPairingSock = null;
 const activeSessions = new Map(); // Restored missing map
 
 export const startApiServer = (app) => {
-    
+
     // Configure Express middleware
     app.use(cors());
     app.use(express.json());
     app.use(express.static('web')); // Serve frontend files
-    
+
     // Fallback route for SPA
     app.get('/', (req, res) => {
         res.sendFile('index.html', { root: 'web' });
@@ -34,22 +34,25 @@ export const startApiServer = (app) => {
 
     // API endpoint to request pairing code or QR
     app.post('/api/request-pairing', async (req, res) => {
+        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔵 [STEP 0/8] NEW PAIRING REQUEST RECEIVED');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
         // 🛑 CLEANUP: If a previous socket exists, kill it to prevent conflicts
         try {
             if (globalPairingSock) {
-                console.log('⚠️ Closing previous pairing socket...');
-                // Check if end function exists before calling
+                console.log('⚠️ [CLEANUP] Closing previous pairing socket...');
                 if (typeof globalPairingSock.end === 'function') {
                     globalPairingSock.end(undefined);
                 } else if (globalPairingSock.ws && typeof globalPairingSock.ws.close === 'function') {
-                    // Fallback to ws.close if end() is missing (unlikely in Baileys but possible)
                     globalPairingSock.ws.close();
                 }
                 globalPairingSock = null;
+                console.log('✅ [CLEANUP] Previous socket closed');
             }
         } catch (e) {
-            console.error('Error closing previous socket (ignored):', e);
-            globalPairingSock = null; // Force null to proceed
+            console.error('❌ [CLEANUP] Error closing previous socket (ignored):', e.message);
+            globalPairingSock = null;
         }
 
         const { phoneNumber, method } = req.body;
@@ -72,41 +75,55 @@ export const startApiServer = (app) => {
 
         try {
 
-            // 🔧 FIX: Clean session folder robustly (like connect-fix.js)
+            // 🔧 FIX: Clean session folder robustly
+            console.log('🧹 [STEP 1/8] Cleaning session folder...');
             if (fs.existsSync(authFolder)) {
                 fs.rmSync(authFolder, { recursive: true, force: true });
-                console.log('🧹 Session cleaned:', authFolder);
+                console.log('✅ [STEP 1/8] Session cleaned:', authFolder);
+            } else {
+                console.log('ℹ️ [STEP 1/8] No previous session to clean');
             }
 
             // Create auth state
+            console.log('🔧 [STEP 2/8] Creating auth state...');
             const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+            console.log('✅ [STEP 2/8] Auth state created');
 
-            // Debug wrapper to confirm saving
+            // Debug wrapper
             const saveCredsDebug = (params) => {
-                console.log('💾 Saving connection credentials...');
+                console.log('💾 [CREDS] Saving credentials to disk...');
                 return saveCreds(params);
             };
 
-            // ✅ EXACT CONFIG FROM connect.js (TESTED & WORKING)
+            console.log('🔧 [STEP 3/8] Creating WhatsApp socket...');
+            console.log('   Config:', {
+                browser: 'Ubuntu/Chrome',
+                timeout: '60s',
+                syncHistory: false,
+                markOnline: false
+            });
+
             const sock = makeWASocket({
                 auth: {
                     creds: state.creds,
                     keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
                 },
                 logger: pino({ level: 'silent' }),
-                browser: Browsers.ubuntu("Chrome"),    // ← Fonction, pas array
+                browser: Browsers.ubuntu("Chrome"),
                 markOnlineOnConnect: false,
-                syncFullHistory: false,                // ← FALSE (différence critique!)
+                syncFullHistory: false,
                 printQRInTerminal: false,
-                connectTimeoutMs: 60000,               // ← 60s comme connect.js
+                connectTimeoutMs: 60000,
                 keepAliveIntervalMs: 10000
             });
 
+            console.log('✅ [STEP 3/8] Socket created');
+            console.log('   Registered:', sock.authState.creds.registered ? 'YES' : 'NO (new session)');
+            console.log('   User ID:', sock.authState.creds.me?.id || 'Not yet authenticated');
+
             // Assign to global variable for future cleanup
             globalPairingSock = sock;
-
-            // ⚠️ CRITICAL LISTENER
-            sock.ev.on('creds.update', saveCredsDebug);
+            globalPairingSock.lastRequestTime = Date.now();
 
             // Store session early
             activeSessions.set(tempSessionId, {
@@ -118,170 +135,112 @@ export const startApiServer = (app) => {
                 sessionId: null
             });
 
-            return new Promise(async (resolve, reject) => {
-                // Timeout safety (Extended for Render)
-                const timeout = setTimeout(() => {
-                    if (!responseSent) {
-                        responseSent = true;
-                        // Send whatever we have or error
-                        res.status(504).json({ error: 'Timeout waiting for WhatsApp code (Render is slow, please retry)' });
-                        resolve();
-                    }
-                }, 60000); // 60s timeout (Render Free Tier needs more time)
+            // Request pairing code FIRST
+            if (method === 'pairing' && !sock.authState.creds.registered) {
+                console.log('\n📱 [STEP 4/8] Requesting pairing code for:', phoneNumber);
+                console.log('⏳ [STEP 4/8] Waiting 2s (OVL delay)...');
+                await delay(2000);
 
-                // Listen for QR code
-                // DEBUG: Log ALL events to see handshake progress
-                const allowedEvents = ['connection.update', 'creds.update', 'messaging-history.set'];
-                /* 
-                sock.ev.on('messages.upsert', (m) => console.log('📥 UPSERT DEBUG', JSON.stringify(m, null, 2)));
-                */
+                console.log('🔐 [STEP 4/8] Calling sock.requestPairingCode()...');
+                pairingCode = await sock.requestPairingCode(phoneNumber);
+                console.log('✅ [STEP 4/8] Pairing code generated:', pairingCode);
 
-                sock.ev.on('connection.update', async (update) => {
-                    const { connection, qr, lastDisconnect } = update;
+                const session = activeSessions.get(tempSessionId);
+                if (session) session.code = pairingCode;
 
-                    // DEBUG LOG
-                    console.log(`[DEBUG] Connection Update: ${connection || 'pending'} | QR: ${!!qr} | Error: ${lastDisconnect?.error}`);
-
-                    if (qr) {
-                        qrCodeData = qr;
-                        console.log('📷 QR Code received');
-
-                        try {
-                            qrImageData = await QRCode.toDataURL(qr);
-
-                            // Update session
-                            const session = activeSessions.get(tempSessionId);
-                            if (session) {
-                                session.qr = qr;
-                                session.qrImage = qrImageData;
-                            }
-
-                            // If user requested QR, send it now
-                            if (method === 'qr' && !responseSent) {
-                                responseSent = true;
-                                clearTimeout(timeout);
-                                res.json({
-                                    success: true,
-                                    qr: qrCodeData,
-                                    qrImage: qrImageData,
-                                    code: null,
-                                    sessionId: tempSessionId,
-                                    message: 'QR Code generated'
-                                });
-                                resolve();
-                            }
-                        } catch (e) {
-                            console.error('QR Gen Error:', e);
-                        }
-                    }
-
-                    // ... (Connection logic remains handled by event listener)
-                    if (connection === 'close') {
-                        const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-                        const statusCode = (lastDisconnect.error)?.output?.statusCode;
-
-                        console.error('❌ Connection Closed. Code:', statusCode);
-                        console.error('⚠️ Error Details:', lastDisconnect?.error); // Detailed logs
-
-                        if (shouldReconnect) {
-                            console.log('🔄 Reconnecting...');
-                            // ... logic
-                        } else {  // 15 is removed
-                            // ... import moved to top
-
-                            // ...
-
-                            const session = activeSessions.get(tempSessionId);
-                            if (session) {
-                                session.connected = false; // Mark as disconnected
-                                session.qr = null;
-                                session.qrImage = null;
-                                session.code = null;
-                                // Optionally, clear sessionId if it's a permanent logout
-                                if (statusCode === DisconnectReason.loggedOut) {
-                                    session.sessionId = null;
-                                    console.log('🗑️ Session permanently logged out.');
-                                }
-                            }
-                            console.log('🛑 Connection closed permanently (logged out or unrecoverable error).');
-                        }
-                    }
-                    if (connection === 'open') {
-                        const session = activeSessions.get(tempSessionId);
-                        if (session) {
-                            session.connected = true;
-                            session.ownerJid = sock.user.id;
-                            // 15 is removed
-                            // ... import moved to top
-
-                            // ...
-
-                            session.connected = true;
-                            session.ownerJid = sock.user.id;
-
-                            // 🔧 FIX: Use Short ID from Supabase (Like connect.js)
-                            try {
-                                const shortId = await uploadSessionToSupabase(authFolder);
-                                console.log('✅ Short Session ID generated:', shortId);
-                                session.sessionId = shortId;
-                            } catch (err) {
-                                console.error('⚠️ Supabase Upload Failed (using Long ID fallback):', err.message);
-                                // Fallback to Long ID (Base64)
-                                session.sessionId = encodeSession(authFolder);
-                            }
-
-                            // OVL SUCCESS LOG
-                            console.log("\n✅ CONNEXION RÉUSSIE (MÉTHODE OVL) !");
-
-                            await sendConfigMessage(sock, session.sessionId, phoneNumber);
-                        }
-                    }
+                res.json({
+                    success: true,
+                    qr: null,
+                    qrImage: null,
+                    code: pairingCode,
+                    sessionId: tempSessionId,
+                    message: 'Pairing code generated'
                 });
 
-                sock.ev.on('creds.update', saveCreds);
+                console.log('📤 [STEP 4/8] Response sent to frontend\n');
+            }
 
-                // Handle Pairing Code
-                if (method === 'pairing') {
+            console.log('🎧 [STEP 5/8] Attaching event listeners...');
+
+            // Event listeners
+            sock.ev.on('connection.update', async (update) => {
+                const { connection, qr, lastDisconnect } = update;
+
+                console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                console.log('🔄 [EVENT] CONNECTION UPDATE');
+                console.log('   Status:', connection || 'pending');
+                console.log('   QR:', qr ? 'Generated' : 'N/A');
+                console.log('   Error Code:', lastDisconnect?.error?.output?.statusCode || 'None');
+                console.log('   Error Msg:', lastDisconnect?.error?.message || 'None');
+
+                if (lastDisconnect?.error) {
+                    console.log('\n⚠️ [ERROR DETAILS]');
+                    console.log('   Name:', lastDisconnect.error.name);
+                    console.log('   Message:', lastDisconnect.error.message);
+                    console.log('   Data:', JSON.stringify(lastDisconnect.error.data, null, 2));
+                }
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+                if (qr && method === 'qr') {
                     try {
-                        console.log('📱 Requesting pairing code for:', phoneNumber);
-                        // ⏳ OVL CRITICAL DELAY (Increased to 5s for anti-spam)
-                        await delay(5000);
-
-                        if (!sock.authState.creds.registered) {
-                            pairingCode = await sock.requestPairingCode(phoneNumber);
-                            console.log('✅ Pairing code generated:', pairingCode);
-
-                            const session = activeSessions.get(tempSessionId);
-                            if (session) session.code = pairingCode;
-
-                            if (!responseSent) {
-                                responseSent = true;
-                                clearTimeout(timeout);
-                                res.json({
-                                    success: true,
-                                    qr: null,
-                                    qrImage: null,
-                                    code: pairingCode,
-                                    sessionId: tempSessionId,
-                                    message: 'Pairing code generated'
-                                });
-                                resolve();
-                            }
+                        qrImageData = await QRCode.toDataURL(qr);
+                        const session = activeSessions.get(tempSessionId);
+                        if (session) {
+                            session.qr = qr;
+                            session.qrImage = qrImageData;
                         }
+                        console.log('📷 QR Code received and encoded');
                     } catch (e) {
-                        console.error('Pairing Error:', e);
-                        if (!responseSent) {
-                            responseSent = true;
-                            res.status(500).json({ error: 'Failed to generate pairing code' });
-                            resolve();
-                        }
+                        console.error('❌ QR Gen Error:', e.message);
                     }
-                } else {
-                    // Method QR: We just wait for the 'qr' event listener above
-                    console.log('📷 Waiting for QR Code...');
                 }
 
-            }); // Close Promise
+                if (connection === 'close') {
+                    const statusCode = lastDisconnect?.error?.output?.statusCode;
+                    console.error('❌ [STEP 8/8] CONNECTION CLOSED');
+                    console.error('   Reason Code:', statusCode);
+                    console.error('   Reason:', statusCode === 515 ? 'Stream Error (possibly IP blocked)' : 'Unknown');
+
+                    const session = activeSessions.get(tempSessionId);
+                    if (session) {
+                        session.connected = false;
+                        session.qr = null;
+                        session.qrImage = null;
+                        session.code = null;
+                    }
+                }
+
+                if (connection === 'open') {
+                    console.log('\n🎉 [STEP 6/8] CONNECTION OPEN!');
+                    const session = activeSessions.get(tempSessionId);
+                    if (session) {
+                        session.connected = true;
+                        session.ownerJid = sock.user.id;
+                        console.log('   Owner JID:', sock.user.id);
+
+                        console.log('\n📁 [STEP 7/8] Uploading session to Supabase...');
+                        try {
+                            const shortId = await uploadSessionToSupabase(authFolder);
+                            console.log('✅ [STEP 7/8] Short Session ID:', shortId);
+                            session.sessionId = shortId;
+                        } catch (err) {
+                            console.error('⚠️ [STEP 7/8] Supabase failed:', err.message);
+                            console.log('   Using long ID fallback...');
+                            session.sessionId = encodeSession(authFolder);
+                            console.log('✅ [STEP 7/8] Long Session ID generated');
+                        }
+
+                        console.log('\n📨 [STEP 8/8] Sending welcome messages to WhatsApp...');
+                        await sendConfigMessage(sock, session.sessionId, phoneNumber);
+                        console.log('✅ [STEP 8/8] Messages sent!');
+                        console.log('\n🎊 FLOW COMPLETED SUCCESSFULLY!\n');
+                    }
+                }
+            });
+
+            sock.ev.on('creds.update', saveCredsDebug);
+            console.log('✅ [STEP 5/8] Event listeners attached');
+            console.log('⏳ Waiting for WhatsApp to respond...\n');
         } catch (error) {
             console.error('Error generating pairing code:', error);
             res.status(500).json({ error: error.message });
