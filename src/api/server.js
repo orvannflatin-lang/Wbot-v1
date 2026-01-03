@@ -33,14 +33,15 @@ const sock = makeWASocket({
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
     },
     logger: pino({ level: 'silent' }),
-    // 🔧 FIX: Signature Standard (Ubuntu) - Plus stable
-    browser: Browsers.ubuntu("Chrome"),
+    // 🔧 FIX: Signature "AMDA/OVL" Exacte pour éviter "Impossible de se connecter"
+    browser: ['Ubuntu', 'Chrome', '20.0.04'],
     printQRInTerminal: true,
     mobile: false,
 
     // 🚀 OPTIMISATION RENDER (RAM & CONNECTION)
     // Désactiver la synchro complète résout le timeout "Impossible de se connecter"
     syncFullHistory: false,
+    shouldSyncHistoryMessage: () => false,
 
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
