@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import QRCode from 'qrcode';
+import fs from 'fs'; // Added missing import
 import makeWASocket, {
     DisconnectReason,
     useMultiFileAuthState,
