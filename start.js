@@ -15,6 +15,19 @@ async function start() {
     const SESSION_ID = process.env.SESSION_ID;
     const hasLocalSession = fs.existsSync('./auth_info') && fs.readdirSync('./auth_info').length > 0;
 
+    // TOUJOURS lancer le serveur web (pour l'interface)
+    console.log('🌐 Serveur Web en écoute...\n');
+    const { default: express } = await import('express');
+    const app = express();
+    startApiServer(app);
+
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`🌐 API Server running on port ${PORT}`);
+        console.log(`📡 Frontend: http://localhost:${PORT}`);
+        console.log(`📡 Health check: http://localhost:${PORT}/api/health\n`);
+    });
+
     if (SESSION_ID || hasLocalSession) {
         if (hasLocalSession && !SESSION_ID) {
             console.log('📋 Mode: BOT (Session locale détectée)');
@@ -22,20 +35,16 @@ async function start() {
             console.log('📋 Mode: BOT (Session ID détecté)');
         }
 
-        // Lancer directement index.js sans validation préalable
-        // index.js gère lui-même la restauration et les erreurs
+        // Lancer le bot
         console.log('🚀 Démarrage du bot...\n');
         await import('./index.js');
     } else {
-        // MODE: API Server (First-time setup)
-        console.log('📋 Mode: API SERVER (Première configuration)');
-        console.log('🌐 Démarrage du serveur API pour génération de session...\n');
+        // Mode PAIRING uniquement
+        console.log('📋 Mode: PAIRING (Première configuration)');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('📱 Ouvrez la page web WBOT pour connecter WhatsApp');
         console.log('🔗 Local: http://localhost:3000');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-
-        startApiServer();
     }
 }
 

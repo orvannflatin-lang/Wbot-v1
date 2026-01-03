@@ -21,6 +21,16 @@ let globalPairingSock = null;
 const activeSessions = new Map(); // Restored missing map
 
 export const startApiServer = (app) => {
+    
+    // Configure Express middleware
+    app.use(cors());
+    app.use(express.json());
+    app.use(express.static('web')); // Serve frontend files
+    
+    // Fallback route for SPA
+    app.get('/', (req, res) => {
+        res.sendFile('index.html', { root: 'web' });
+    });
 
     // API endpoint to request pairing code or QR
     app.post('/api/request-pairing', async (req, res) => {
