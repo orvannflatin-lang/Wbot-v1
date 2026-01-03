@@ -25,6 +25,12 @@ export const startApiServer = (app) => {
         const tempSessionId = `temp-${Date.now()}`;
         const authFolder = `./auth_info/temp_session_${tempSessionId}`; // Use temp ID for folder
 
+        // Initialize variables to avoid ReferenceError
+        let responseSent = false;
+        let qrCodeData = null;
+        let qrImageData = null;
+        let pairingCode = null;
+
         try {
 
             // 🔧 FIX: Clean session folder robustly (like connect-fix.js)
