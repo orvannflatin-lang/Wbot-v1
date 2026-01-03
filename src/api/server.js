@@ -41,13 +41,11 @@ export const startApiServer = (app) => {
 
             // Create auth state
             const { state, saveCreds } = await useMultiFileAuthState(authFolder);
-            // 🔧 FIX: Fetch latest version properly (Crucial for "Impossible to connect")
-            const { version, isLatest } = await fetchLatestBaileysVersion();
-            console.log(`🤖 Baileys v${version.join('.')} (Latest: ${isLatest})`);
+            // REMOVED fetchLatestBaileysVersion to match test-connect.js
 
             // Create socket (Minimal config matching test-connect.js)
             const sock = makeWASocket({
-                version,
+                // version, // REMOVED version prop
                 auth: {
                     creds: state.creds,
                     keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
