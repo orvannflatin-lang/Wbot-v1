@@ -118,6 +118,13 @@ async function requestPairingCode() {
         });
 
         if (!response.ok) {
+            // Check for rate limit
+            if (response.status === 429) {
+                const data = await response.json();
+                showNotification(data.error || 'Trop de requêtes. Attendez 5s.', 'error');
+                goToStep(2); // Go back
+                return;
+            }
             throw new Error('Failed to request pairing code');
         }
 
@@ -164,6 +171,13 @@ async function requestQRCode() {
         });
 
         if (!response.ok) {
+            // Check for rate limit
+            if (response.status === 429) {
+                const data = await response.json();
+                showNotification(data.error || 'Trop de requêtes. Attendez 5s.', 'error');
+                goToStep(2);
+                return;
+            }
             throw new Error('Failed to request QR code');
         }
 
@@ -206,7 +220,6 @@ async function requestQRCode() {
             // Only show pairing code if we are NOT in strict QR mode (or if user switches)
             // For now, we treat this as a "Wait/Retry" scenario for QR
             if (method === 'qr') {
-                // Retry or show error, do NOT switch to pairing
                 console.log('Received pairing code but wanted QR. Ignoring/Retrying...');
                 throw new Error('QR Code not fully generated yet. Retrying...');
             } else {
@@ -218,22 +231,28 @@ async function requestQRCode() {
 
     } catch (error) {
         console.error('Error requesting QR code:', error);
-        showNotification('Erreur QR Code. Utilisez le Code de Pairage.', 'error');
+        showNotification('Impossible (Pour l\'instant). Utilisez le Code de Pairage.', 'error');
         goToStep(2);
     }
 }
 
 // Check connection status
+let failureCount = 0; // Prevent infinite spam
 function startConnectionCheck() {
+    failureCount = 0;
     // Check every 2 seconds
     connectionCheckInterval = setInterval(async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/session-status/${currentSessionId}`);
 
             if (!response.ok) {
+                failureCount++;
+                if (failureCount > 5) stopConnectionCheck(); // Stop after 5 fails
                 return;
             }
 
+            // Reset failure count on success
+            failureCount = 0;
             const data = await response.json();
 
             // 🔄 UPDATE QR CODE IF CHANGED
@@ -254,7 +273,13 @@ function startConnectionCheck() {
                 handleConnectionSuccess(data);
             }
         } catch (error) {
-            console.error('Error checking status:', error);
+            console.error('Error checking status (Server likely down):', error);
+            failureCount++;
+            if (failureCount > 5) {
+                console.warn('⛔ Stopping connection check due to too many errors.');
+                stopConnectionCheck();
+                showNotification('Serveur injoignable. Relancez-le.', 'error');
+            }
         }
     }, 2000);
 }
