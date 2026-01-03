@@ -241,7 +241,8 @@ export const startApiServer = (app) => {
         console.error('Error generating pairing code:', error);
         res.status(500).json({ error: error.message });
     }
-});
+}); // End of app.post
+}; // End of startApiServer
 
 /**
  * Check session connection status
