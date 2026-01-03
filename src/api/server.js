@@ -33,20 +33,21 @@ const sock = makeWASocket({
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
     },
     logger: pino({ level: 'silent' }),
-    // 🔧 FIX: Signature "AMDA/OVL" Exacte pour éviter "Impossible de se connecter"
+    // 🔧 FIX: Signature "AMDA/OVL" Exacte (Reference Repo)
     browser: ['Ubuntu', 'Chrome', '20.0.04'],
     printQRInTerminal: true,
     mobile: false,
 
-    // 🚀 OPTIMISATION RENDER (RAM & CONNECTION)
-    // Désactiver la synchro complète résout le timeout "Impossible de se connecter"
-    syncFullHistory: false,
-    shouldSyncHistoryMessage: () => false,
+    // 🚀 CONFIG REFERENCE (Strict Copy from lib/whatsapp.js)
+    syncFullHistory: true, // Re-enabled as per reference
+    shouldSyncHistoryMessage: () => true, // Re-enabled
 
-    markOnlineOnConnect: true,
+    // ⚠️ CRITICAL: Stay user offline during handshake
+    markOnlineOnConnect: false,
+
     generateHighQualityLinkPreview: true,
-    connectTimeoutMs: 60000,
-    defaultQueryTimeoutMs: 60000,
+    connectTimeoutMs: 150000, // 150s Timeout from reference
+    defaultQueryTimeoutMs: 150000,
     keepAliveIntervalMs: 10000,
     retryRequestDelayMs: 5000
 });
