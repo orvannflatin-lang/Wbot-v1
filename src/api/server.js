@@ -69,6 +69,9 @@ export const startApiServer = (app) => {
                 defaultQueryTimeoutMs: 60000,
                 // Removed all other complex "expert" params that were causing issues
             });
+            
+            // Assign to global variable for future cleanup
+            globalPairingSock = sock;
 
             // Store session early
             activeSessions.set(tempSessionId, {
