@@ -29,8 +29,20 @@ function setupEventListeners() {
     btnPairing?.addEventListener('click', () => handleMethodSelect('pairing'));
     btnQR?.addEventListener('click', () => handleMethodSelect('qr'));
 
+
     // Copy session ID
     btnCopySession?.addEventListener('click', copySessionId);
+
+    // NEW: Copy Pairing Code
+    const btnCopyPairingCode = document.getElementById('btnCopyPairingCode');
+    btnCopyPairingCode?.addEventListener('click', () => {
+        const code = document.getElementById('pairingCode').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            showNotification('Code copié !', 'success');
+            btnCopyPairingCode.classList.add('copied');
+            setTimeout(() => btnCopyPairingCode.classList.remove('copied'), 2000);
+        });
+    });
 }
 
 // Steps Navigation

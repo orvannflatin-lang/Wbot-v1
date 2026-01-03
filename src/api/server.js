@@ -43,6 +43,13 @@ export const startApiServer = (app) => {
         }
 
         const { phoneNumber, method } = req.body;
+        
+        // Anti-spam debounce
+        const now = Date.now();
+        if (globalPairingSock && (now - (globalPairingSock.lastRequestTime || 0)) < 5000) {
+           return res.status(429).json({ error: 'Please wait 5 seconds before retrying' });
+        }
+
         // Use a FIXED folder for pairing to ensure stability/permissions
         const authFolder = `./auth_info_pairing`;
         const tempSessionId = `temp-${Date.now()}`;
