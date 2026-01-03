@@ -16,7 +16,9 @@ import makeWASocket, {
 // ...
 
 // Global variable to track the current pairing socket
+// Global variable to track the current pairing socket
 let globalPairingSock = null;
+const activeSessions = new Map(); // Restored missing map
 
 export const startApiServer = (app) => {
 
