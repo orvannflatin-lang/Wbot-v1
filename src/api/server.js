@@ -357,4 +357,6 @@ PREFIXE=.
     // Actually, start.js imports startApiServer and calls it.
     // The top definition is correct. This one is closing the file.
 
-    export default app;
+}; // Match startApiServer
+
+export default app;
