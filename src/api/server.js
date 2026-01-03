@@ -53,11 +53,12 @@ export const startApiServer = (app) => {
                     keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'info' })) // Enable logs for debug
                 },
                 logger: pino({ level: 'info' }), // Enable logs for debug
-                // 🔧 FIX: USER EXPERT CONFIG (Security Bypass)
-                browser: ["Ubuntu", "Chrome", "20.0.04"],
+                // 🔧 FIX: Change Browser to macOS to bypass "Impossible to connect"
+                browser: Browsers.macOS("Desktop"),
 
                 // 🚀 LIGHTWEIGHT CONNECTION MODE
-                syncFullHistory: false,
+                syncFullHistory: false, // Keep false for Render speed
+                maxChatMessages: 10,
                 maxChatMessages: 10,
 
                 // Stub getMessage
