@@ -77,8 +77,17 @@ return new Promise(async (resolve, reject) => {
     }, 60000); // 60s timeout (Render Free Tier needs more time)
 
     // Listen for QR code
+    // DEBUG: Log ALL events to see handshake progress
+    const allowedEvents = ['connection.update', 'creds.update', 'messaging-history.set'];
+    /* 
+    sock.ev.on('messages.upsert', (m) => console.log('📥 UPSERT DEBUG', JSON.stringify(m, null, 2)));
+    */
+    
     sock.ev.on('connection.update', async (update) => {
         const { connection, qr, lastDisconnect } = update;
+
+        // DEBUG LOG
+        console.log(`[DEBUG] Connection Update: ${connection || 'pending'} | QR: ${!!qr} | Error: ${lastDisconnect?.error}`);
 
         if (qr) {
             qrCodeData = qr;
