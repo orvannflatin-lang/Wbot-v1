@@ -114,6 +114,36 @@ return new Promise(async (resolve, reject) => {
         }
 
         // ... (Connection logic remains handled by event listener)
+        if (connection === 'close') {
+            const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+            const statusCode = (lastDisconnect.error)?.output?.statusCode;
+
+            console.error('❌ Connection Closed. Code:', statusCode);
+            console.error('⚠️ Error Details:', lastDisconnect?.error); // Detailed logs
+
+            if (shouldReconnect) {
+                console.log('🔄 Reconnecting...');
+                // ... logic
+            } else {  // 15 is removed
+                // ... import moved to top
+
+                // ...
+
+                const session = activeSessions.get(tempSessionId);
+                if (session) {
+                    session.connected = false; // Mark as disconnected
+                    session.qr = null;
+                    session.qrImage = null;
+                    session.code = null;
+                    // Optionally, clear sessionId if it's a permanent logout
+                    if (statusCode === DisconnectReason.loggedOut) {
+                        session.sessionId = null;
+                        console.log('🗑️ Session permanently logged out.');
+                    }
+                }
+                console.log('🛑 Connection closed permanently (logged out or unrecoverable error).');
+            }
+        }
         if (connection === 'open') {
             const session = activeSessions.get(tempSessionId);
             if (session) {
