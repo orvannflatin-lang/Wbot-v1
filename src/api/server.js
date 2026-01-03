@@ -43,8 +43,10 @@ export const startApiServer = (app) => {
         }
 
         const { phoneNumber, method } = req.body;
+        const { phoneNumber, method } = req.body;
+        // Use a FIXED folder for pairing to ensure stability/permissions
+        const authFolder = `./auth_info_pairing`;
         const tempSessionId = `temp-${Date.now()}`;
-        const authFolder = `./auth_info/temp_session_${tempSessionId}`; // Use temp ID for folder
 
         // Initialize variables to avoid ReferenceError
         let responseSent = false;
@@ -71,7 +73,7 @@ export const startApiServer = (app) => {
                 logger: pino({ level: 'silent' }), // Silent logs to match test-connect
                 printQRInTerminal: false, // Managed manually
                 browser: Browsers.macOS("Desktop"), // The working signature
-                connectTimeoutMs: 60000,
+                connectTimeoutMs: 180000, // Increased to 3 minutes
                 // defaultQueryTimeoutMs removed
             });
 
