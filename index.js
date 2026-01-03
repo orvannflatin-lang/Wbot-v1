@@ -23,7 +23,21 @@ let welcomeMessageSent = false;
 const messageCache = new Map();
 
 // Démarrer API Server (Pour Render/Keep-Alive et Pairage Web)
-startApiServer();
+import express from 'express';
+import cors from 'cors';
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Inject routes
+startApiServer(app);
+
+// Start Server
+app.listen(PORT, () => {
+    console.log(`\n🌐 API Server running on port ${PORT}`);
+    console.log(`📡 Health check: http://localhost:${PORT}/api/health\n`);
+});
 
 async function startWBOT() {
     console.log('🚀 Démarrage WBOT Starter...');
