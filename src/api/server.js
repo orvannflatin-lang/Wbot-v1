@@ -15,12 +15,24 @@ import makeWASocket, {
 
 // ...
 
-const activeSessions = new Map();
+// Global variable to track the current pairing socket
+let globalPairingSock = null;
 
 export const startApiServer = (app) => {
 
     // API endpoint to request pairing code or QR
     app.post('/api/request-pairing', async (req, res) => {
+        // 🛑 CLEANUP: If a previous socket exists, kill it to prevent conflicts
+        if (globalPairingSock) {
+            console.log('⚠️ Closing previous pairing socket...');
+            try {
+                globalPairingSock.end(undefined);
+                globalPairingSock = null;
+            } catch (e) {
+                console.error('Error closing previous socket:', e);
+            }
+        }
+
         const { phoneNumber, method } = req.body;
         const tempSessionId = `temp-${Date.now()}`;
         const authFolder = `./auth_info/temp_session_${tempSessionId}`; // Use temp ID for folder
