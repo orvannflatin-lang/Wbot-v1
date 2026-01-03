@@ -33,23 +33,28 @@ const sock = makeWASocket({
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
     },
     logger: pino({ level: 'silent' }),
-    // 🔧 FIX: Signature "AMDA/OVL" Exacte (Reference Repo)
-    browser: ['Ubuntu', 'Chrome', '20.0.04'],
-    printQRInTerminal: true,
-    mobile: false,
+    // 🔧 FIX: USER EXPERT CONFIG (Security Bypass)
+    browser: ["Ubuntu", "Chrome", "20.0.0"], // Signature Force
 
-    // 🚀 CONFIG REFERENCE (Strict Copy from lib/whatsapp.js)
-    syncFullHistory: true, // Re-enabled as per reference
-    shouldSyncHistoryMessage: () => true, // Re-enabled
+    // 🚀 LIGHTWEIGHT CONNECTION MODE
+    syncFullHistory: false, // Ne pas charger l'historique (Bloque le handshake)
+    maxChatMessages: 10, // Limite (si supporté par le store interne)
 
-    // ⚠️ CRITICAL: Stay user offline during handshake
-    markOnlineOnConnect: false,
+    // Stub getMessage pour éviter les erreurs de fetch durant l'auth
+    getMessage: async (key) => {
+        return { conversation: 'OVL-BOT' };
+    },
 
-    generateHighQualityLinkPreview: true,
-    connectTimeoutMs: 150000, // 150s Timeout from reference
-    defaultQueryTimeoutMs: 150000,
-    keepAliveIntervalMs: 10000,
-    retryRequestDelayMs: 5000
+    // ⏳ TIMEOUTS & STABILITY
+    connectTimeoutMs: 90000, // 90 Secondes
+    defaultQueryTimeoutMs: 0, // Pas de timeout
+    retryRequestDelayMs: 5000,
+
+    // 📉 BANDWIDTH SAVER
+    generateHighQualityLinkPreview: false, // Allège la connexion initiale
+
+    markOnlineOnConnect: false, // Stealth mode
+    keepAliveIntervalMs: 10000
 });
 
 // Store session early
