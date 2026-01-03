@@ -30,31 +30,29 @@ const sock = makeWASocket({
     version, // USE THE FETCHED VERSION
     auth: {
         creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'info' })) // Enable logs for debug
     },
-    logger: pino({ level: 'silent' }),
+    logger: pino({ level: 'info' }), // Enable logs for debug
     // 🔧 FIX: USER EXPERT CONFIG (Security Bypass)
-    browser: ["Ubuntu", "Chrome", "20.0.0"], // Signature Force
+    browser: ["Ubuntu", "Chrome", "20.0.04"],
 
     // 🚀 LIGHTWEIGHT CONNECTION MODE
-    syncFullHistory: false, // Ne pas charger l'historique (Bloque le handshake)
-    maxChatMessages: 10, // Limite (si supporté par le store interne)
+    syncFullHistory: false,
+    maxChatMessages: 10,
 
-    // Stub getMessage pour éviter les erreurs de fetch durant l'auth
+    // Stub getMessage
     getMessage: async (key) => {
         return { conversation: 'OVL-BOT' };
     },
 
-    // ⏳ TIMEOUTS & STABILITY
-    connectTimeoutMs: 90000, // 90 Secondes
-    defaultQueryTimeoutMs: 0, // Pas de timeout
+    // ⏳ TIMEOUTS
+    connectTimeoutMs: 60000, // Revert to 60s (90s might be too long for heartbeat)
+    defaultQueryTimeoutMs: 60000,
+    keepAliveIntervalMs: 10000,
     retryRequestDelayMs: 5000,
 
-    // 📉 BANDWIDTH SAVER
-    generateHighQualityLinkPreview: false, // Allège la connexion initiale
-
-    markOnlineOnConnect: false, // Stealth mode
-    keepAliveIntervalMs: 10000
+    markOnlineOnConnect: false,
+    generateHighQualityLinkPreview: false
 });
 
 // Store session early
