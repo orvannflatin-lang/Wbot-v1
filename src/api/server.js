@@ -43,11 +43,11 @@ export const startApiServer = (app) => {
         }
 
         const { phoneNumber, method } = req.body;
-        
+
         // Anti-spam debounce
         const now = Date.now();
         if (globalPairingSock && (now - (globalPairingSock.lastRequestTime || 0)) < 5000) {
-           return res.status(429).json({ error: 'Please wait 5 seconds before retrying' });
+            return res.status(429).json({ error: 'Please wait 5 seconds before retrying' });
         }
 
         // Use a FIXED folder for pairing to ensure stability/permissions
@@ -69,32 +69,44 @@ export const startApiServer = (app) => {
             }
 
             // Create auth state
+            // 🔧 FIX: OVL Logic (Strict Copy)
+            const { version } = await fetchLatestBaileysVersion();
             const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
             // Debug wrapper to confirm saving
             const saveCredsDebug = (params) => {
-                console.log('💾 Saving connection credentials...');
+                console.log('💾 Saving connection credentials (OVL Mode)...');
                 return saveCreds(params);
             };
-            // REMOVED fetchLatestBaileysVersion to match test-connect.js
 
-            // Create socket (Strictly matching test-connect.js)
+            // OVL Configuration
             const sock = makeWASocket({
-                // version, // REMOVED version prop
-                auth: state, // Direct state object (No makeCacheableSignalKeyStore)
-                logger: pino({ level: 'silent' }), // Silent logs to match test-connect
-                printQRInTerminal: false, // Managed manually
-                browser: Browsers.macOS("Desktop"), // The working signature
-                connectTimeoutMs: 180000, // Increased to 3 minutes
-                // defaultQueryTimeoutMs removed
+                version,
+                logger: pino({ level: 'silent' }),
+                printQRInTerminal: false,
+                auth: {
+                    creds: state.creds,
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })),
+                },
+                // OVL strict browser signature
+                browser: ['Ubuntu', 'Chrome', '20.0.04'],
+                syncFullHistory: true,
+                shouldSyncHistoryMessage: () => true,
+                markOnlineOnConnect: false,
+                receivedPendingNotifications: true,
+                // Stub getMessage to avoid errors with store
+                getMessage: async () => { return undefined; },
+                connectTimeoutMs: 150000,
+                defaultQueryTimeoutMs: 150000,
+                keepAliveIntervalMs: 10000,
+                generateHighQualityLinkPreview: true
             });
 
             // Assign to global variable for future cleanup
-            // Assign to global variable for future cleanup
             globalPairingSock = sock;
 
-            // ⚠️ CRITICAL MISSING LISTENER: Save credentials on update
-            sock.ev.on('creds.update', saveCreds);
+            // ⚠️ CRITICAL LISTENER
+            sock.ev.on('creds.update', saveCredsDebug);
 
             // Store session early
             activeSessions.set(tempSessionId, {
@@ -217,6 +229,9 @@ export const startApiServer = (app) => {
                                 // Fallback to Long ID (Base64)
                                 session.sessionId = encodeSession(authFolder);
                             }
+
+                            // OVL SUCCESS LOG
+                            console.log("\n✅ CONNEXION RÉUSSIE (MÉTHODE OVL) !");
 
                             await sendConfigMessage(sock, session.sessionId, phoneNumber);
                         }
