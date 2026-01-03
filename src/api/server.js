@@ -33,16 +33,18 @@ const sock = makeWASocket({
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
     },
     logger: pino({ level: 'silent' }),
-    // 🔧 FIX: Logique "AMDA" / "OVL" (Signature Array explicite + Timeouts longs)
-    browser: ['Ubuntu', 'Chrome', '20.0.04'],
+    // 🔧 FIX: Signature Standard (Ubuntu) - Plus stable
+    browser: Browsers.ubuntu("Chrome"),
     printQRInTerminal: true,
     mobile: false,
-    // OVL Params
-    syncFullHistory: true,
+
+    // 🚀 OPTIMISATION RENDER (RAM & CONNECTION)
+    // Désactiver la synchro complète résout le timeout "Impossible de se connecter"
+    syncFullHistory: false,
+
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
-    receivedPendingNotifications: true,
-    connectTimeoutMs: 60000, // Reduced back to 60s (150s might be too long/suspicious)
+    connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: 60000,
     keepAliveIntervalMs: 10000,
     retryRequestDelayMs: 5000
