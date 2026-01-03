@@ -64,19 +64,15 @@ export const startApiServer = (app) => {
             const { state, saveCreds } = await useMultiFileAuthState(authFolder);
             // REMOVED fetchLatestBaileysVersion to match test-connect.js
 
-            // Create socket (Minimal config matching test-connect.js)
+            // Create socket (Strictly matching test-connect.js)
             const sock = makeWASocket({
                 // version, // REMOVED version prop
-                auth: {
-                    creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
-                },
+                auth: state, // Direct state object (No makeCacheableSignalKeyStore)
                 logger: pino({ level: 'silent' }), // Silent logs to match test-connect
                 printQRInTerminal: false, // Managed manually
                 browser: Browsers.macOS("Desktop"), // The working signature
                 connectTimeoutMs: 60000,
-                defaultQueryTimeoutMs: 60000,
-                // Removed all other complex "expert" params that were causing issues
+                // defaultQueryTimeoutMs removed
             });
 
             // Assign to global variable for future cleanup
