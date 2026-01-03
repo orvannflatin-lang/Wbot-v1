@@ -243,49 +243,48 @@ export const startApiServer = (app) => {
             res.status(500).json({ error: error.message });
         }
     }); // End of app.post
-}; // End of startApiServer
 
-/**
- * Check session connection status
- */
-app.get('/api/session-status/:sessionId', (req, res) => {
-    const { sessionId } = req.params;
-    const session = activeSessions.get(sessionId);
+    /**
+     * Check session connection status
+     */
+    app.get('/api/session-status/:sessionId', (req, res) => {
+        const { sessionId } = req.params;
+        const session = activeSessions.get(sessionId);
 
-    if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-    }
+        if (!session) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
 
-    res.json({
-        connected: session.connected,
-        phoneNumber: session.phoneNumber,
-        code: session.code,
-        qrImage: session.qrImage || null, // Add this line
-        sessionId: session.sessionId || null,
-        ownerJid: session.ownerJid || null
+        res.json({
+            connected: session.connected,
+            phoneNumber: session.phoneNumber,
+            code: session.code,
+            qrImage: session.qrImage || null, // Add this line
+            sessionId: session.sessionId || null,
+            ownerJid: session.ownerJid || null
+        });
     });
-});
 
-/**
- * Health check endpoint
- */
-app.get('/api/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        activeSessions: activeSessions.size,
-        uptime: process.uptime()
+    /**
+     * Health check endpoint
+     */
+    app.get('/api/health', (req, res) => {
+        res.json({
+            status: 'ok',
+            activeSessions: activeSessions.size,
+            uptime: process.uptime()
+        });
     });
-});
 
-/**
- * Send configuration message to user's WhatsApp
- */
-async function sendConfigMessage(sock, sessionId, phoneNumber) {
-    try {
-        await delay(2000); // Wait for connection to stabilize
+    /**
+     * Send configuration message to user's WhatsApp
+     */
+    async function sendConfigMessage(sock, sessionId, phoneNumber) {
+        try {
+            await delay(2000); // Wait for connection to stabilize
 
-        // Message 1: Welcome
-        const welcomeMessage = `╭──────────────⬣
+            // Message 1: Welcome
+            const welcomeMessage = `╭──────────────⬣
 │ 🎉 *BIENVENUE SUR WBOT !*
 ╰──────────────⬣
 
@@ -304,11 +303,11 @@ Félicitations ! Votre bot WhatsApp est maintenant connecté avec succès.
 *Un message va suivre avec vos informations de déploiement...*
 ━━━━━━━━━━━━━━━━━━`;
 
-        await sock.sendMessage(sock.user.id, { text: welcomeMessage });
-        await delay(2000);
+            await sock.sendMessage(sock.user.id, { text: welcomeMessage });
+            await delay(2000);
 
-        // Message 2: Configuration
-        const configMessage = `╭──────────────⬣
+            // Message 2: Configuration
+            const configMessage = `╭──────────────⬣
 │ ⚙️ *CONFIG RENDER*
 ╰──────────────⬣
 
@@ -346,16 +345,16 @@ PREFIXE=.
 
 *WBOT v1.0* - Développé par Luis-Orvann`;
 
-        await sock.sendMessage(sock.user.id, { text: configMessage });
-        console.log('✅ Welcome & Configuration messages sent to WhatsApp');
-    } catch (error) {
-        console.error('Error sending messages:', error);
+            await sock.sendMessage(sock.user.id, { text: configMessage });
+            console.log('✅ Welcome & Configuration messages sent to WhatsApp');
+        } catch (error) {
+            console.error('Error sending messages:', error);
+        }
     }
-}
 
-// Start server removed (handled by start.js via app export)
-// app.listen moved to start.js or handled by startApiServer call if needed, but here we just export app or function.
-// Actually, start.js imports startApiServer and calls it.
-// The top definition is correct. This one is closing the file.
+    // Start server removed (handled by start.js via app export)
+    // app.listen moved to start.js or handled by startApiServer call if needed, but here we just export app or function.
+    // Actually, start.js imports startApiServer and calls it.
+    // The top definition is correct. This one is closing the file.
 
-export default app;
+    export default app;
