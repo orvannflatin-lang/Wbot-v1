@@ -25,17 +25,32 @@ const messageCache = new Map();
 // Démarrer API Server (Pour Render/Keep-Alive et Pairage Web)
 import express from 'express';
 import cors from 'cors';
+import path from 'path'; // Added path import
+import { fileURLToPath } from 'url'; // Added for __dirname
+
+// Fix __dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Inject routes
+// 🌍 SERVE FRONTEND (Fix 404)
+app.use(express.static(path.join(__dirname, 'web')));
+
+// Inject API routes
 startApiServer(app);
+
+// Fallback for SPA (if needed, or just root)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'index.html'));
+});
 
 // Start Server
 app.listen(PORT, () => {
     console.log(`\n🌐 API Server running on port ${PORT}`);
+    console.log(`📡 Frontend: http://localhost:${PORT}`);
     console.log(`📡 Health check: http://localhost:${PORT}/api/health\n`);
 });
 
