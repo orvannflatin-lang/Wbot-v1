@@ -2,7 +2,7 @@
 // Détection automatique: localhost ou Render
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000/api'  // Dev local
-    : 'https://wbot-v1-1.onrender.com/api'; // Production Render
+    : 'https://wbot-v1-2kt3.onrender.com/api'; // Production Render
 
 // State
 let currentStep = 1;
