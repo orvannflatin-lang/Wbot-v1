@@ -76,3 +76,6 @@ Bot : 🤖 Analyse de l'image : [réponse sur le texte]
 **Redémarrez le bot pour appliquer les changements !** 🚀
 
 
+
+
+

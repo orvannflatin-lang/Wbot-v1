@@ -20,7 +20,7 @@
     --text-secondary: #b4b4c8;
     --glass-bg: rgba(255, 255, 255, 0.05);
     --glass-border: rgba(255, 255, 255, 0.1);
-    
+
     /* Shadows */
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -44,11 +44,10 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, 
-        var(--bg-primary) 0%, 
-        var(--bg-secondary) 50%, 
-        #16213e 100%
-    );
+    background: linear-gradient(135deg,
+            var(--bg-primary) 0%,
+            var(--bg-secondary) 50%,
+            #16213e 100%);
     z-index: -2;
 }
 
@@ -58,7 +57,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-image: 
+    background-image:
         radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
         radial-gradient(circle at 80% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
         radial-gradient(circle at 40% 20%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
@@ -131,11 +130,10 @@ body {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(255, 255, 255, 0.05), 
-        transparent
-    );
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.05),
+            transparent);
     transition: left 0.5s;
 }
 
@@ -149,7 +147,7 @@ body {
     color: var(--text-primary);
 }
 
-.glass-card > p {
+.glass-card>p {
     color: var(--text-secondary);
     margin-bottom: 2rem;
 }
@@ -318,7 +316,9 @@ body {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Pairing Code Display */
@@ -380,10 +380,13 @@ body {
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
         transform: scale(1);
     }
+
     50% {
         opacity: 0.5;
         transform: scale(1.2);
@@ -405,6 +408,7 @@ body {
     from {
         transform: scale(0);
     }
+
     to {
         transform: scale(1);
     }
@@ -511,6 +515,7 @@ body {
         opacity: 0;
         transform: translateY(-20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -522,6 +527,7 @@ body {
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -533,21 +539,54 @@ body {
     .container {
         padding: 1.5rem 1rem;
     }
-    
+
     .glass-card {
         padding: 2rem 1.5rem;
     }
-    
+
     .logo h1 {
         font-size: 2rem;
     }
-    
+
     .pairing-code {
         font-size: 2.5rem;
         letter-spacing: 0.5rem;
     }
-    
+
     .method-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* Copy Code Button specific styles */
+.pairing-code-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.btn-copy-code {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    padding: 10px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-copy-code:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.btn-copy-code.copied {
+    background: rgba(16, 185, 129, 0.5);
+    /* Green success */
+    border-color: #10B981;
 }

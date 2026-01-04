@@ -255,18 +255,6 @@ function startConnectionCheck() {
             failureCount = 0;
             const data = await response.json();
 
-            // 🔄 UPDATE QR CODE IF CHANGED
-            if (data.qrImage) {
-                const qrContainer = document.getElementById('qrCodeContainer');
-                const qrImg = qrContainer ? qrContainer.querySelector('img') : null;
-
-                // Only update if image is different to avoid flickering
-                if (qrImg && qrImg.src !== data.qrImage) {
-                    qrImg.src = data.qrImage;
-                    console.log('🔄 QR Code refreshed');
-                }
-            }
-
             if (data.connected && data.sessionId) {
                 // Connection successful!
                 stopConnectionCheck();

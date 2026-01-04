@@ -146,3 +146,6 @@ await sock.sendMessage(statusJid, {
 **Le bot est prêt à l'emploi !** ✅
 
 
+
+
+

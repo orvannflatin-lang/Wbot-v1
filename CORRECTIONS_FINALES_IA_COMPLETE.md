@@ -98,3 +98,6 @@ Bot : [réponse automatique]
 4. Vérifiez que vous répondez bien à une image (pas juste envoyer .what seul)
 
 
+
+
+
