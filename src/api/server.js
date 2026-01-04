@@ -22,8 +22,19 @@ const activeSessions = new Map(); // Restored missing map
 
 export const startApiServer = (app) => {
 
-    // Configure Express middleware
-    app.use(cors());
+    // Configure CORS for Netlify + Localhost
+    const corsOptions = {
+        origin: [
+            'https://wbot-v1.netlify.app',  // Production Netlify
+            'http://localhost:3000',         // Dev local
+            'http://127.0.0.1:3000'          // Dev local alternate
+        ],
+        methods: ['GET', 'POST'],
+        credentials: true,
+        optionsSuccessStatus: 200
+    };
+
+    app.use(cors(corsOptions));
     app.use(express.json());
     app.use(express.static('web')); // Serve frontend files
 

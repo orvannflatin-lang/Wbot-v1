@@ -1,8 +1,15 @@
-// Configuration
-// Détection automatique: localhost ou Render
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3000/api'  // Dev local
-    : 'https://wbot-v1-2kt3.onrender.com/api'; // Production Render
+// Configuration - API Backend URL
+const API_BASE_URL = (() => {
+    const hostname = window.location.hostname;
+
+    // Local development
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:3000/api';
+    }
+
+    // Production (Netlify or Render)
+    return 'https://wbot-v1-2kt3.onrender.com/api';
+})();
 
 // State
 let currentStep = 1;
