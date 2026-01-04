@@ -334,12 +334,14 @@ NOM_OWNER=VotreNom
 MODE=private
 STICKER_AUTHOR_NAME=VotreNom
 PREFIXE=.
+NODE_ENV=production
+PORT=10000
 \`\`\`
 
 ⚠️ *INSTRUCTIONS* :
-1. Allez sur Render > Blueprint > New
-2. Connectez GitHub
-3. Collez ce SESSION_ID quand demandé
+1. Allez sur render.com → New Web Service
+2. Connectez le repo GitHub : Wbot-v1
+3. Collez TOUTES ces variables dans "Environment"
 4. Deploy ! 🚀
 
 ━━━━━━━━━━━━━━━━━━
