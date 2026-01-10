@@ -49,6 +49,10 @@ export const UserConfig = sequelize.define('UserConfig', {
     type: DataTypes.STRING,
     defaultValue: '💚'
   },
+  persona: {
+    type: DataTypes.STRING,
+    defaultValue: 'normal'
+  },
   banned: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
@@ -154,12 +158,94 @@ export const SavedStatus = sequelize.define('SavedStatus', {
   }
 });
 
-// Initialiser la base de données
+// Table Scheduled Messages (Pour .schedule, .remind)
+export const ScheduledMsg = sequelize.define('ScheduledMsg', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  userJid: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  targetJid: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  content: {
+    type: DataTypes.TEXT,
+    allowNull: false
+  },
+  scheduledTime: {
+    type: DataTypes.DATE,
+    allowNull: false
+  },
+  sent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  }
+});
+export const ScheduledTask = sequelize.define('ScheduledTask', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  triggerTime: { type: DataTypes.DATE, allowNull: false },
+  actionType: { type: DataTypes.STRING, allowNull: false },
+  targetJid: { type: DataTypes.STRING, allowNull: false },
+  content: { type: DataTypes.TEXT, allowNull: true },
+  mediaPath: { type: DataTypes.STRING, allowNull: true },
+  executed: { type: DataTypes.BOOLEAN, defaultValue: false }
+});
+
+// Table Paramètres Groupe (.antilien, .lock)
+export const GroupSettings = sequelize.define('GroupSettings', {
+  jid: { type: DataTypes.STRING, primaryKey: true },
+  antilink: { type: DataTypes.BOOLEAN, defaultValue: false },
+  antibot: { type: DataTypes.BOOLEAN, defaultValue: false },
+  welcome: { type: DataTypes.BOOLEAN, defaultValue: false },
+  locked: { type: DataTypes.BOOLEAN, defaultValue: false },
+  muteDuration: { type: DataTypes.INTEGER, defaultValue: 0 }
+});
+
+// Table Stats Utilisateur (.topactive)
+export const UserStat = sequelize.define('UserStat', {
+  uid: { type: DataTypes.STRING, primaryKey: true },
+  msgCount: { type: DataTypes.INTEGER, defaultValue: 0 },
+  lastSeen: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  exp: { type: DataTypes.INTEGER, defaultValue: 0 },
+  level: { type: DataTypes.INTEGER, defaultValue: 1 }
+});
+
+// Table Avertissements (.warn)
+export const Warns = sequelize.define('Warns', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  userJid: { type: DataTypes.STRING, allowNull: false },
+  groupJid: { type: DataTypes.STRING, allowNull: false },
+  reason: { type: DataTypes.STRING, defaultValue: 'Non spécifié' },
+  count: { type: DataTypes.INTEGER, defaultValue: 1 }
+});
+
+// Table AFK (.away)
+export const AfkConfig = sequelize.define('AfkConfig', {
+  jid: { type: DataTypes.STRING, primaryKey: true },
+  reason: { type: DataTypes.STRING, defaultValue: 'Occupé' },
+  timestamp: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+});
+
+// Table Mariages (.marry)
+export const Marriages = sequelize.define('Marriages', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  husband: { type: DataTypes.STRING, allowNull: false },
+  wife: { type: DataTypes.STRING, allowNull: false },
+  marriageDate: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+});
+
 // Initialiser la base de données
 export async function initDatabase() {
   try {
     await sequelize.authenticate();
-    console.log('✅ Connexion à la base de données établie');
+    // console.log('📦 Connexion Base de Données établie.');
+    await sequelize.sync({ alter: true, logging: false });
+    // console.log('📦 Base de Données synchronisée (ALL TABLES).');
 
     // Supprimer la table de backup problématique avant sync (gestion silencieuse)
     try {
@@ -180,7 +266,7 @@ export async function initDatabase() {
 
     // Désactiver le backup automatique de Sequelize qui cause des erreurs
     await sequelize.sync({ alter: false, logging: false });
-    console.log('✅ Tables de base de données synchronisées (Safe Mode)');
+    // console.log('✅ Tables de base de données synchronisées (Safe Mode)');
 
     // 4. Backup & Migration Logique (SQLite Safe) - DÉSACTIVÉ pour éviter les erreurs
     // Le backup cause des problèmes de colonnes, on le désactive complètement

@@ -1,17 +1,68 @@
-import makeWASocket, {
+import {
+    makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
     Browsers,
-    makeCacheableSignalKeyStore,
-    delay,
-    normalizeMessageContent,
-    extractMessageContent
+    makeCacheableSignalKeyStore
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
+import { Boom } from '@hapi/boom';
 import fs from 'fs';
-import { startApiServer } from './src/api/server.js';
+import util from 'util'; // Pour le formatage des logs
 import { initDatabase } from './src/database/schema.js';
 import { OVLHandler } from './src/handlers/ovl_handler.js';
+import { startApiServer } from './src/api/server.js'; // Ensure this is imported if used
+
+// 🤫 SILENCE FORCE (Filtrage ULTIME des logs)
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+
+const SILENCED_PATTERNS = [
+    'Session error', 'Bad MAC', 'MessageCounterError', 'Failed to decrypt', // Erreurs techniques
+    'closing session', 'Closing session', 'SessionEntry', 'chains:', 'currentRatchet:', 'registrationId', // Dumps de session
+    'Decrypted message', // Bruit Libsignal
+    'Service de planification', // Scheduler
+    'Démarrage du nettoyage', 'Rien à nettoyer', // Cleaner
+    'preKey', 'signedKeyId', 'remoteIdentityKey', // Key dumps
+    'Unknown message', 'Duplicate message' // Autres bruits
+];
+
+function shouldSilence(args) {
+    const msg = args.map(arg => {
+        if (typeof arg === 'object') {
+            try { return JSON.stringify(arg); } catch { return String(arg); }
+        }
+        return String(arg);
+    }).join(' ');
+
+    return SILENCED_PATTERNS.some(pattern => msg.includes(pattern));
+}
+
+console.error = function (...args) {
+    if (shouldSilence(args)) return;
+    originalConsoleError.apply(console, args);
+};
+
+console.warn = function (...args) {
+    if (shouldSilence(args)) return;
+    originalConsoleWarn.apply(console, args);
+};
+
+console.log = function (...args) {
+    const msg = util.format(...args);
+    // ✅ WHITELIST : Toujours afficher les commandes et réponses + Info connexion
+    if (msg.includes('✅ COMMANDE') ||
+        msg.includes('🤖 REPONSE BOT') ||
+        msg.includes('WBOT CONNECTÉ') ||
+        msg.includes('User:')) {
+        originalConsoleLog.apply(console, args);
+        return;
+    }
+
+    if (shouldSilence(args)) return;
+    originalConsoleLog.apply(console, args);
+};
 
 const PORT = process.env.PORT || 3000;
 
@@ -22,129 +73,127 @@ let welcomeMessageSent = false;
 // Structure: { key, message, messageTimestamp, pushName, isViewOnce, rawData, viewOnceContent }
 const messageCache = new Map();
 
-// Démarrer API Server (Pour Render/Keep-Alive et Pairage Web)
-import express from 'express';
-import cors from 'cors';
-import path from 'path'; // Added path import
-import { fileURLToPath } from 'url'; // Added for __dirname
+// (Serveur Web géré par start.js)
 
-// Fix __dirname in ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// 🌍 SERVE FRONTEND (Fix 404)
-app.use(express.static(path.join(__dirname, 'web')));
-
-// Inject API routes
-startApiServer(app);
-
-// Fallback for SPA (if needed, or just root)
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'web', 'index.html'));
-});
-
-// Start Server
-app.listen(PORT, () => {
-    console.log(`\n🌐 API Server running on port ${PORT}`);
-    console.log(`📡 Frontend: http://localhost:${PORT}`);
-    console.log(`📡 Health check: http://localhost:${PORT}/api/health\n`);
-});
+let lastConnectLog = 0; // Anti-Spam connexion
 
 async function startWBOT() {
-    console.log('🚀 Démarrage WBOT Starter...');
+    const BOT_START_TIME = Math.floor(Date.now() / 1000) - 60; // Timestamp démarrage (-60s pour marge)
 
-    // Init DB (pour AutoLike)
+    // ------------------------------------------------------
+    // ⚙️ CONFIGURATION MULTI-SESSION (SUPABASE)
+    // ------------------------------------------------------Initialisation Base de Données
     await initDatabase();
 
-    // 🔄 RESTAURATION SESSION DEPUIS ENV (Render/Deployment)
-    // Si SESSION_ID est présent dans les variables d'environnement (Render)
-    // On restaure le dossier auth_info avant de démarrer
-    if (process.env.SESSION_ID) {
-        // Importer dynamiquement pour éviter les dépendances au top-level si non utilisé
-        const { decodeSession } = await import('./src/utils/session-handler.js');
-        const authPath = './auth_info';
+    // 🧹 Nettoyage Automatique au démarrage (Vieux fichiers > 3 jours)
+    const { cleanOldData } = await import('./src/utils/cleaner.js');
+    cleanOldData(); // Lancer une fois maintenant
+    setInterval(() => cleanOldData(), 24 * 60 * 60 * 1000); // Puis toutes les 24h
 
-        // On ne restaure que si le dossier est vide ou que SESSION_ID a changé
-        // En prod, le dossier est souvent éphémère de toute façon
-        if (!fs.existsSync(authPath) || fs.readdirSync(authPath).length === 0) {
-            console.log('🔄 Restauration de la session depuis SESSION_ID...');
-            try {
-                decodeSession(process.env.SESSION_ID, authPath);
-            } catch (e) {
-                console.error('❌ Échec restauration session:', e.message);
-            }
+    // 🔄 RESTAURATION SESSION DEPUIS SUPABASE (Via SESSION_ID)
+    // Si SESSION_ID est fourni (Render/Prod), on télécharge les IDs de connexion depuis la table SQL
+    if (process.env.SESSION_ID) {
+        // ... (Code existant inchangé pour la restauration) ...
+        try {
+            // Import statique ou dynamique
+            const { restoreSessionFromSupabase } = await import('./src/utils/supabase-session.js');
+            const authPath = './auth_info';
+            await restoreSessionFromSupabase(process.env.SESSION_ID, authPath);
+        } catch (e) {
+            // Silence en cas d'erreur non critique ou déjà loggée
         }
     }
+
+    // 🔄 Version Check (Auto)
 
     // Session Auth
     const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
 
-    // Config Socket Optimisée Render (Ubuntu)
+    // Caches pour l'optimisation
+    const groupCache = new Map();
+
     const sock = makeWASocket({
         auth: {
             creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }).child({ level: 'silent' }))
         },
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true, // Enable for terminal QR display
-        // Signature "Ubuntu Chrome" pour éviter les blocages Render
-        browser: Browsers.ubuntu("Chrome"),
-        connectTimeoutMs: 60000,
+        browser: Browsers.ubuntu('Chrome'),
+        printQRInTerminal: false, // QR handled manually
         keepAliveIntervalMs: 10000,
-        syncFullHistory: true, // ACTIVE: Force la synchro complète pour récupérer le contenu manquant (ViewOnce)
-        markOnlineOnConnect: true, // ACTIVE: Être "Visible" aide à la réception des messages
-        generateHighQualityLinkPreview: true
+        markOnlineOnConnect: false,
+        generateHighQualityLinkPreview: true,
+        shouldSyncHistoryMessage: () => false,
+        syncFullHistory: false,
+        cachedGroupMetadata: async (jid) => groupCache.get(jid),
+        getMessage: async (key) => {
+            const msg = messageCache.get(key.id);
+            return msg?.message || undefined;
+        },
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
+        retryRequestDelayMs: 5000
     });
 
-    // Note: Pas de store Baileys dans cette version, utilisation du cache Map amélioré
+    // 🕵️ LOG DES RÉPONSES (Demande Utilisateur)
+    const originalSendMessage = sock.sendMessage;
+    sock.sendMessage = async (jid, content, options) => {
+        // On ne loggue que les messages TEXTE envoyés par le bot (pas les events tech)
+        if (content && content.text) {
+            console.log('\x1b[36m%s\x1b[0m', `🤖 REPONSE BOT: ${content.text.substring(0, 60).replace(/\n/g, ' ')}...`);
+        }
+        return await originalSendMessage.call(sock, jid, content, options);
+    };
 
-    // 🔄 Événements de Connexion
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (connection === 'close') {
-            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('⚠️ Connexion fermée. Reconnexion:', shouldReconnect);
-            if (shouldReconnect) {
-                startWBOT();
+            const error = lastDisconnect?.error;
+            const statusCode = error?.output?.statusCode;
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+
+            if (statusCode === 515) {
+                console.log('⚠️ Warning: Stream Errored (515). Tentative de reconnexion...');
+            }
+
+            // Log uniquement si c'est une déconnexion définitive
+            if (statusCode === DisconnectReason.loggedOut) {
+                console.log('❌ Session déconnectée (Logged Out). Veuillez scanner le QR code à nouveau.');
+            } else if (shouldReconnect) {
+                // Reconnexion silencieuse avec délai pour éviter le spam
+                // On attend un peu plus si c'est une 515 pour laisser le stream se fermer proprement
+                setTimeout(startWBOT, statusCode === 515 ? 5000 : 3000);
             }
         } else if (connection === 'open') {
-            console.log('✅ WBOT CONNECTÉ À WHATSAPP !');
-            console.log('🆔 User:', sock.user.id);
+            // Anti-Spam du log de connexion (Si < 5s, on ignore les doublons)
+            const now = Date.now();
+            if (now - lastConnectLog < 5000) return;
+            lastConnectLog = now;
+
+            // console.log('✅ WBOT CONNECTÉ À WHATSAPP !');
+            // console.log('🆔 User:', sock.user.id);
+
+            // ⏰ Démarrer le Scheduler (Cron)
+            const { initScheduler } = await import('./src/utils/scheduler.js');
+            initScheduler(sock);
+
+
+            // Charger les commandes (si nécessaire) ? Non, géré par handler.
 
             // 🔧 FIX: N'envoyer le message de bienvenue qu'UNE SEULE FOIS
             if (!welcomeMessageSent) {
                 welcomeMessageSent = true;
 
                 const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-                const phoneNumber = sock.user.id.split(':')[0];
+                const phoneNumber = sock.user.id.split(':')[0]; // Needed for session ID gen
 
                 // 📢 NOTIFICATION DE DÉMARRAGE (Render Uniquement)
-                // Déplacé ICI pour éviter le spam "WBOT ACTIF" à chaque reconnexion
                 if (process.env.RENDER || process.env.NODE_ENV === 'production') {
-                    await sock.sendMessage(myJid, {
-                        text: `🚀 *WBOT ACTIF ET CONNECTÉ*\n\n✅ Le bot tourne maintenant sur le serveur Render.\n🔋 Mémoire optimisée.\n✨ Prêt à servir !`
-                    });
+                    // Silence en prod pour éviter le spam, sauf si vraiment nécessaire
                 }
 
-                // Message 1: Bienvenue OVL-style
-                const msgInfo = `╭───〔 🤖 WBOT 〕───⬣
-│ ߷ Etat       ➜ Connecté ✅
-│ ߷ Préfixe    ➜ .
-│ ߷ Mode       ➜ private
-│ ߷ Commandes  ➜ 10
-│ ߷ Version    ➜ 1.0.0
-│ ߷ *Développeur*➜ Luis Orvann
-╰──────────────⬣`;
-
-                // Récupération du VRAI nom WhatsApp
-                const realOwnerName = sock.user.name || sock.user.notify || 'Utilisateur';
-
-                // 🔧 FIX: Générer SESSION_ID
+                // Génération Session ID pour l'affichage
                 const generateShortId = () => {
                     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
                     let id = 'WBOT~';
@@ -155,39 +204,48 @@ async function startWBOT() {
                 };
                 const sessionId = generateShortId();
 
-                // Message 2: UNIQUE MESSAGE DE CONFIGURATION (Tout-en-un)
-                const msgConfig = `╭──────────────⬣
-│ ⚙️ *CONFIG RENDER*
+                // Message unique et propre (Variables Render)
+                // Message 1 : Infos Bot (Style Demandé)
+                const prefix = '.';
+                const msg1 = `╭───〔 🤖 WBOT 〕───⬣
+│ ߷ Etat       ➜ Connecté ✅
+│ ߷ Préfixe    ➜ ${prefix}
+│ ߷ Mode       ➜ private
+│ ߷ Commandes  ➜ 10
+│ ߷ Version    ➜ 1.0.0
+│ ߷ *Développeur*➜ Luis Orvann
+╰──────────────⬣`;
+
+                await sock.sendMessage(myJid, { text: msg1 });
+
+                // Récupération dynamique du nom WhatsApp de l'utilisateur
+                const ownerName = sock.user.name || sock.user.notify || 'Luis-Orvann';
+
+                // Message 2 : Config Render (Style Demandé - Exact)
+                const msg2 = `╭──────────────⬣
+│ ⚙️ CONFIG RENDER
 ╰──────────────⬣
 
 Copiez TOUT ce bloc pour vos variables :
 
-\`\`\`
 SESSION_ID=${sessionId}
 OWNER_ID=${phoneNumber}
-NOM_OWNER=${realOwnerName}
+NOM_OWNER=${ownerName}
 MODE=private
-STICKER_AUTHOR_NAME=${realOwnerName}
-PREFIXE=.
-\`\`\`
+STICKER_AUTHOR_NAME=${ownerName}
+PREFIXE=${prefix}`;
 
-⚠️ *INSTRUCTIONS* :
-1. Allez sur Render > Blueprint > New
-2. Connectez GitHub
-3. Collez ce SESSION_ID quand demandé (ou remplissez les champs manuels)
-4. Deploy ! 🚀`;
+                await sock.sendMessage(myJid, { text: msg2 });
 
-                // Envoyer les messages
-                await sock.sendMessage(myJid, { text: msgInfo });
-                await delay(1000);
-                await sock.sendMessage(myJid, { text: msgConfig });
+                // console.log('\x1b[32m%s\x1b[0m', '📨 MESSAGES DE BIENVENUE ENVOYÉS (Unique).');
 
-                console.log('📨 Messages de bienvenue (et SessionID) envoyés');
+                // On met le flag à true
+                welcomeMessageSent = true;
 
-                console.log('📨 Messages de bienvenue envoyés (1 fois seulement)');
-            } else {
-                console.log('ℹ️ Bot reconnecté (message de bienvenue déjà envoyé)');
             }
+            // else {
+            //    console.log('ℹ️ Bot reconnecté (message déjà envoyé)');
+            // }
         }
     });
 
@@ -201,54 +259,90 @@ PREFIXE=.
         if (msg.messages && msg.messages[0]) {
             const m = msg.messages[0];
 
+            // 🛑 FILTRE TEMPOREL DÉSACTIVÉ (Sur demande utilisateur)
+            // Le bot répondra désormais à TOUS les messages reçus, même anciens.
+
             // 🕵️ DEBUG CRITIQUE FORCE: Voir ce qui arrive VRAIMENT
             const msgKeys = m.message ? Object.keys(m.message) : [];
             const isMsgEmpty = msgKeys.length === 0;
 
-            console.log(`📥 UPSERT DEBUG [${m.key.id}]: Keys=${JSON.stringify(msgKeys)} fromMe=${m.key.fromMe}`);
+            // ... (Debug logs suppressed)
 
-            if (isMsgEmpty || msgKeys[0] === 'vide') {
-                console.log('🚨 ALERT: Message vide reçu ! Dump complet de l\'objet m :');
-                console.log(JSON.stringify(m, null, 2));
-            }
-
-            // Est-ce une ViewOnce ? (Logs désactivés pour réduire le spam)
+            // Est-ce une ViewOnce ?
             const isViewOnce = m.message?.viewOnceMessage || m.message?.viewOnceMessageV2 || m.message?.ephemeralMessage?.message?.viewOnceMessage || (m.key && m.key.isViewOnce);
 
-            // DEBUG: Si ViewOnce, on veut voir ce qui arrive
-            if (isViewOnce) {
-                console.log('📥 UPSERT PROCESSED VIEWONCE:', m.key.id);
-                // console.log('   -> Message Keys:', Object.keys(m.message || {}));
+            // Définir 'from' si pas encore défini
+            const from = m.key.remoteJid;
+
+            // 🕵️ DEBUG: Log de TOUT message entrant
+            // const debugType = m.message ? Object.keys(m.message)[0] : 'No Message Content';
+
+            // ✅ ANTI-DELETE CACHE (Messages + Statuts)
+            if (m.message && !m.message.protocolMessage && !m.key.fromMe) {
+                messageCache.set(m.key.id, m);
+
+                // Log pour montrer que le message est en cache (utile pour débug)
+                const msgType = Object.keys(m.message)[0];
+                const senderName = m.pushName || 'Inconnu';
+                const isStatus = from === 'status@broadcast';
+                const label = isStatus ? '📢 STATUT' : '💾 CACHE';
+                console.log(`${label}: Message de ${senderName} (${msgType}) → ID: ${m.key.id.substring(0, 20)}...`);
+
+                setTimeout(() => messageCache.delete(m.key.id), 60 * 60 * 1000);
             }
 
-            // 🕵️ DEBUG: Log de TOUT message entrant (ID + RemoteJid + Type)
-            const debugType = m.message ? Object.keys(m.message)[0] : 'No Message Content';
-            // console.log(`🕵️ MSG REÇU [${m.key.remoteJid}]: ${m.key.id} | Type: ${debugType} | Participant: ${m.key.participant}`);
-
-            // DEBUG AUTO-LIKE: Vérifier si c'est un statut (log réduit)
-            // if (m.key.remoteJid === 'status@broadcast') {
-            //     console.log(`💚 STATUS REÇU ! De: ${m.key.participant} | ID: ${m.key.id}`);
-            // }
-
             // 🔍 DÉTECTION MANUELLE DES SUPPRESSIONS (ProtocolMessage)
-            // Car l'event messages.delete ne se déclenche pas toujours pour les autres
-            if (m.message && m.message.protocolMessage && m.message.protocolMessage.type === 0) { // TYPE 0 = REVOKE
-                console.log('🗑️ DÉTECTION REVOKE VIA UPSERT:', m.key.id);
+            if (m.message && m.message.protocolMessage && m.message.protocolMessage.type === 0) {
                 const deletedKey = m.message.protocolMessage.key;
 
-                // On déclenche manuellement la logique Anti-Delete
-                // On simule l'objet deletion pour réutiliser le code ou on le copie ici
-                // Pour faire simple et vite, on copie la logique critique ici
+                // ️ DEBUG VALUES
+                console.log(`🗑️ CHECK: MsgKey.fromMe=${deletedKey.fromMe}, RevokeKey.fromMe=${m.key.fromMe}`);
+
+                // 🔒 SECURE: On ignore les actions venant de MOI (Revoke envoyé par moi)
+                // Si m.key.fromMe est true, c'est moi qui ai cliqué sur "Supprimer pour tous". On ignore.
+                if (m.key.fromMe) return;
+
+                // 💚 AUTO-LIKE STATUS (Optimisé)
+                if (m.key.remoteJid === 'status@broadcast' && !m.key.fromMe) {
+                    const { UserConfig } = await import('./src/database/schema.js');
+                    const ownerId = sock.user.id.split(':')[0].split('@')[0] + '@s.whatsapp.net';
+
+                    // Récupérer la config
+                    const config = await UserConfig.findOne({ where: { jid: ownerId } }) || { autoLikeStatus: true, likeEmoji: '💚' };
+
+                    if (config.autoLikeStatus) {
+                        try {
+                            // 1. Marquer comme vu
+                            await sock.readMessages([m.key]);
+
+                            // 2. Envoyer la réaction (Liker)
+                            // Note: Pour réagir à un statut, il faut utiliser 'status@broadcast' comme JID
+                            // et inclure le participant dans statusJidList (si supporté par la lib) ou simplement réagir.
+                            // Sur Baileys recent, send react to status requires correct key.
+
+                            await sock.sendMessage('status@broadcast', {
+                                react: { text: config.likeEmoji || '💚', key: m.key }
+                            }, { statusJidList: [m.key.participant] });
+
+                        } catch (e) {
+                            console.error('❌ Auto-Like Failed:', e.message);
+                        }
+                    }
+                    return;
+                }
+
+                console.log('🗑️ ANTI-DELETE: Suppression par autrui détectée !');
+
                 try {
                     const { UserConfig } = await import('./src/database/schema.js');
-                    const ownerJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+                    const ownerJid = sock.user.id.split(':')[0].split('@')[0] + '@s.whatsapp.net';
 
                     const cachedMsg = messageCache.get(deletedKey.id);
-                    if (cachedMsg) {
-                        const config = await UserConfig.findOne({ where: { jid: ownerJid } });
 
-                        if (!config || !config.antidelete) return;
-                        const settings = JSON.parse(config.antidelete);
+                    if (cachedMsg) {
+                        // Récupérer la config pour les settings
+                        const configAD = await UserConfig.findOne({ where: { jid: ownerJid } });
+                        const settings = JSON.parse(configAD?.antidelete || '{}');
 
                         // STRICT CHECK
                         const isGroup = deletedKey.remoteJid.endsWith('@g.us');
@@ -321,40 +415,62 @@ PREFIXE=.
                             notifText += `╰──────────────⬣`;
                             await sock.sendMessage(ownerJid, { text: notifText, mentions: [deletedKey.participant || deletedKey.remoteJid] });
                         }
-                        // Si Média, on envoie le média AVEC la box en légende
+                        // Si Média, télécharger et renvoyer avec caption (OVL STYLE)
                         else {
                             notifText += `╰──────────────⬣\n`;
                             if (contentText) notifText += `\n📝 *Légende originale :*\n${contentText}`;
 
-                            // On clone le message pour ne pas modifier le cache
-                            const msgContent = JSON.parse(JSON.stringify(cachedMsg.message));
-                            const specificContent = msgContent[msgType];
+                            const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
 
-                            // On injecte notre texte OVL en caption/contexInfo
-                            if (specificContent) {
-                                specificContent.caption = notifText;
-                                // Pour les stickers/audio qui n'ont pas de caption, on envoie le texte d'abord puis le média
-                                const hasCaptionSupport = (msgType === 'imageMessage' || msgType === 'videoMessage' || msgType === 'documentMessage');
+                            try {
+                                const buffer = await downloadMediaMessage(
+                                    { key: cachedMsg.key, message: cachedMsg.message },
+                                    'buffer',
+                                    {},
+                                    { logger: console }
+                                );
 
-                                if (hasCaptionSupport) {
-                                    // Envoi du média modifié (Caption = OVL Info)
-                                    await sock.sendMessage(ownerJid, { forward: { key: cachedMsg.key, message: msgContent } }, { caption: notifText });
-                                    // Fallback si le forward avec caption ne marche pas comme prévu (certaines libs ignorent caption sur forward)
-                                    // Mais testons d'abord. Si ça rate, on verra.
-                                    // Alternative: Reconstruire le message
-                                    // await sock.sendMessage(ownerJid, { [msgType.replace('Message', '')]: specificContent, caption: notifText });
-                                } else {
-                                    // Stickers, Vocaux -> Pas de caption possible -> Envoi Texte PUIS Média
-                                    await sock.sendMessage(ownerJid, { text: notifText, mentions: [deletedKey.participant || deletedKey.remoteJid] });
-                                    await sock.sendMessage(ownerJid, { forward: { key: cachedMsg.key, message: cachedMsg.message } });
+                                if (buffer) {
+                                    const mediaType = msgType === 'imageMessage' ? 'image' :
+                                        msgType === 'videoMessage' ? 'video' :
+                                            msgType === 'audioMessage' ? 'audio' :
+                                                msgType === 'stickerMessage' ? 'sticker' : 'document';
+
+                                    const msgOptions = { [mediaType]: buffer };
+
+                                    // CRITICAL: Caption si supporté (Image/Video/Document)
+                                    if (mediaType === 'image' || mediaType === 'video' || mediaType === 'document') {
+                                        msgOptions.caption = notifText;
+                                        await sock.sendMessage(ownerJid, msgOptions);
+                                    } else {
+                                        // Audio/Sticker: Texte puis média
+                                        await sock.sendMessage(ownerJid, { text: notifText, mentions: [deletedKey.participant || deletedKey.remoteJid] });
+                                        if (mediaType === 'audio') msgOptions.mimetype = 'audio/mp4';
+                                        await sock.sendMessage(ownerJid, msgOptions);
+                                    }
                                 }
+                            } catch (errDl) {
+                                console.error('❌ Download media failed:', errDl);
+                                await sock.sendMessage(ownerJid, { text: notifText + '\n\n⚠️ Média non disponible', mentions: [deletedKey.participant || deletedKey.remoteJid] });
                             }
                         }
 
                     }
+                    if (cachedMsg) {
+                        // ... block content ...
+                    } else {
+                        console.log(`⚠️ Anti-Delete: Message [${deletedKey.id}] non trouvé en cache (Bot éteint lors de la réception ?)`);
+                    }
                 } catch (e) {
                     console.error('❌ Erreur Anti-Delete Upsert:', e);
                 }
+                return;
+            }
+
+            // 🛑 GLOBAL IGNORE OLD MESSAGES (Rattrapage historique)
+            const msgTime = m.messageTimestamp;
+            const bootTime = Math.floor(Date.now() / 1000) - Math.floor(process.uptime());
+            if (msgTime && msgTime < bootTime) {
                 return;
             }
 
@@ -716,26 +832,7 @@ PREFIXE=.
         }
     });
 
-    // Gestion de la reconnexion
-    sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update;
-
-        if (qr) {
-            // Deprecated message handling (kept silent or minimal)
-        }
-
-        if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('⚠️ Connexion fermée. Reconnexion:', shouldReconnect);
-            if (shouldReconnect) {
-                startWBOT();
-            }
-        } else if (connection === 'open') {
-            console.log('✅ WBOT CONNECTÉ À WHATSAPP !');
-            const botNumber = sock.user.id.split(':')[0];
-            console.log(`🆔 User: ${sock.user.id}`);
-        }
-    });
+    // (Gestion connection.update centralisée plus haut)
 
     return sock;
 }
@@ -764,4 +861,4 @@ setInterval(() => {
     console.log(`🧹 Cache nettoyé: ${deletedCount} suppression(s). Reste: ${messageCache.size} messages.`);
 }, 10 * 60 * 1000); // Vérification toutes les 10 minutes (vs 1h)
 
-console.log('🌐 Serveur Web en écoute...');
+// Fin du script

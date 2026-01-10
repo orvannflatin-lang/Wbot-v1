@@ -57,8 +57,15 @@ export function decodeSession(sessionId, targetFolder) {
             sessionData = JSON.parse(decompressed.toString('utf-8'));
         } catch (e) {
             // Fallback for legacy uncompressed sessions
-            const jsonString = compressedBuffer.toString('utf-8');
-            sessionData = JSON.parse(jsonString);
+            try {
+                const jsonString = compressedBuffer.toString('utf-8');
+                sessionData = JSON.parse(jsonString);
+            } catch (jsonErr) {
+                console.error('❌ CRITICAL SESSION PARSE ERROR: Invalid JSON');
+                const rawPrefix = base64Data.substring(0, 50);
+                console.error(`   RAW PREFIX: "${rawPrefix}..." (Len: ${base64Data.length})`);
+                throw jsonErr;
+            }
         }
 
         // Create target folder if it doesn't exist

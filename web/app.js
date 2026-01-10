@@ -1,14 +1,21 @@
 // Configuration - API Backend URL
 const API_BASE_URL = (() => {
     const hostname = window.location.hostname;
+    const port = window.location.port; // Récupérer le port actuel (ex: 3001)
 
-    // Local development
+    // Local development : Utiliser le même port que le serveur web actuel
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        return 'http://localhost:3000/api';
+        return `http://${hostname}:${port}/api`;
     }
 
-    // Production (Netlify or Render)
-    return 'https://wbot-v1-2kt3.onrender.com/api';
+    // Production (Netlify or Render) -> URL fixée ou relative si servi par le même backend
+    // Si on est sur Netlify, on veut probablement taper sur le Render
+    if (hostname.includes('netlify.app')) {
+        return 'https://wbot-v1-2kt3.onrender.com/api';
+    }
+
+    // Fallback: Si on est servi par le backend Render directement
+    return '/api';
 })();
 
 // State

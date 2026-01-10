@@ -78,61 +78,41 @@ async function startSocket(usePairing, phoneNumber) {
             console.log('📁 Envoi de la session sur Supabase (Short ID)...');
 
             try {
-                // 1. Upload Supabase pour avoir un ID court (avec Fallback)
+                // 1. Upload Supabase SQL (Upload Strict, pas de fallback local)
                 let sessionId;
                 try {
-                    sessionId = await uploadSessionToSupabase('./auth_info');
-                    console.log(`✅ Session ID généré : ${sessionId}`);
+                    const myPhone = sock.user.id.split(':')[0];
+                    sessionId = await uploadSessionToSupabase('./auth_info', myPhone);
+                    console.log(`✅ Session Secure ID généré : ${sessionId}`);
                 } catch (err) {
-                    console.error('⚠️ Upload Supabase échoué, utilisation ID Local (Long):', err.message);
-                    sessionId = encodeSession('./auth_info');
+                    console.error('❌ ERREUR CRITIQUE SUPABASE:', err.message);
+                    console.log('⚠️ Impossible de sauvegarder la session en base. Vérifiez votre connexion internet.');
+                    process.exit(1); // On arrête car sans Supabase, le bot ne marchera pas sur Render
                 }
 
-                // 2. Message 1 : Variables de Déploiement (Style OVL)
-                const msgDeploy = `╭──────────────⬣
-│ 📋 DÉPLOIEMENT RENDER
-╰──────────────⬣
+                // 2. Préparation du message unique de configuration
+                const realOwnerName = sock.user.name || sock.user.notify || 'Utilisateur'; // Nom WhatsApp
+                const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+                const ownerNumber = sock.user.id.split(':')[0];
 
-Copiez ces variables :
+                const finalMessage = `✅ *CONNEXION RÉUSSIE !*
 
-PREFIXE=.
-NOM_OWNER=Luis Orvann
-NUMERO_OWNER=${sock.user.id.split(':')[0]}
-MODE=private
-STICKER_AUTHOR_NAME=Luis Orvann
+Voici vos variables à copier-coller sur Render pour activer votre bot :
 
-⚠️ SESSION_ID : Voir message suivant
-
-💡 *Guide Render* :
-1. render.com → New Web Service
-2. Connecter votre repo GitHub
-3. Coller ces variables
-4. Deploy !`;
-
-                // 3. Message 2 : La Session ID
-                const msgSession = `╭──────────────⬣
-│ 🔑 SESSION_ID
-╰──────────────⬣
 
 SESSION_ID=${sessionId}
+OWNER_ID=${ownerNumber}
+NOM_OWNER=${realOwnerName}
+MODE=private
+STICKER_AUTHOR_NAME=${realOwnerName}
+PREFIXE=.`;
 
-⚠️ *IMPORTANT* :
-• Gardez ce SESSION_ID en sécurité
-• Ne le partagez JAMAIS
-• Utilisez-le pour déployer sur Render
+                // 3. Envoyer le message
+                await sock.sendMessage(myJid, { text: finalMessage });
 
-✅ Votre bot est prêt !`;
-
-                // 4. Envoyer les deux messages
-                const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-
-                await sock.sendMessage(myJid, { text: msgDeploy });
-                await delay(1000); // Petite pause pour l'ordre
-                await sock.sendMessage(myJid, { text: msgSession });
-
-                console.log('📨 MESSAGES (DÉPLOIEMENT + SESSION) ENVOYÉS !');
-                console.log('✅ Session générée avec succès.');
-                console.log('👋 Arrêt automatique dans 5 secondes pour laisser la place au bot principal...');
+                console.log('📨 MESSAGE DE CONFIGURATION ENVOYÉ !');
+                console.log('✅ Session sécurisée et prête.');
+                console.log('👋 Arrêt automatique dans 5 secondes...');
 
                 await delay(5000);
                 process.exit(0);

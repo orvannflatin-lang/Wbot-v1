@@ -107,6 +107,10 @@ export const startApiServer = (app) => {
             };
 
             console.log('🔧 [STEP 3/8] Creating WhatsApp socket...');
+
+            const { version } = await fetchLatestBaileysVersion();
+            console.log(`ℹ️ Baileys Version: v${version.join('.')}`);
+
             console.log('   Config:', {
                 browser: 'Ubuntu/Chrome',
                 timeout: '60s',
@@ -115,12 +119,13 @@ export const startApiServer = (app) => {
             });
 
             const sock = makeWASocket({
+                version,
                 auth: {
                     creds: state.creds,
                     keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
                 },
                 logger: pino({ level: 'silent' }),
-                browser: Browsers.ubuntu("Chrome"),
+                browser: ["Ubuntu", "Chrome", "20.0.04"], // ✅ Signature Standard
                 markOnlineOnConnect: false,
                 syncFullHistory: false,
                 printQRInTerminal: false,

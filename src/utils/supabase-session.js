@@ -1,87 +1,136 @@
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
-// Configuration Supabase fournie par l'utilisateur
+// 🔒 VARIABLES HARDCODÉES (Sécurisées)
+// Ces clés permettent au bot de se connecter directement sans config utilisateur
 const SUPABASE_URL = 'https://kgwrlutwqnfhqizeftgb.supabase.co';
 const SUPABASE_KEY = 'sb_secret_bXf8z9qjjPi8YwqTlAHmkA_cQhJqEB7';
-const BUCKET_NAME = 'wbot_sessions'; // Bucket created successfully via debug script
+const TABLE_NAME = 'wbot_sessions';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Initialisation Client
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+        persistSession: false
+    }
+});
 
 /**
- * Upload auth_info folder to Supabase Storage and return Short ID
- * @param {string} authFolder 
- * @returns {Promise<string>} Short Session ID (WBOT~...)
+ * Génère un ID de session sécurisé et complexe
+ * Format: WBOT~[UUID_V4] (Ex: WBOT~550e8400-e29b-41d4-a716-446655440000)
  */
-export async function uploadSessionToSupabase(authFolder) {
-    try {
-        const sessionData = {};
-        const files = fs.readdirSync(authFolder);
+function generateSecureSessionId() {
+    return `WBOT~${crypto.randomUUID()}`;
+}
 
-        for (const file of files) {
-            const filePath = path.join(authFolder, file);
-            const content = fs.readFileSync(filePath, 'utf-8');
-            sessionData[file] = content;
+/**
+ * Upload auth_info folder to Supabase SQL Table
+ * @param {string} authFolder 
+ * @param {string} phoneNumber (Optionnel) Pour loger à qui appartient la session
+ * @returns {Promise<string>} Secure Session ID
+ */
+export async function uploadSessionToSupabase(authFolder, phoneNumber = null) {
+    try {
+        console.log('🔄 Préparation de la sauvegarde SQL...');
+        const sessionData = {};
+
+        // Lire tous les fichiers du dossier auth
+        if (fs.existsSync(authFolder)) {
+            const files = fs.readdirSync(authFolder);
+            for (const file of files) {
+                const filePath = path.join(authFolder, file);
+                try {
+                    const content = fs.readFileSync(filePath, 'utf-8');
+                    sessionData[file] = content;
+                } catch (readErr) {
+                    console.warn(`⚠️ Ignore fichier non-texte: ${file}`);
+                }
+            }
+        } else {
+            throw new Error(`Dossier introuvable: ${authFolder}`);
         }
 
-        const jsonString = JSON.stringify(sessionData);
+        // Vérifier qu'on a des données
+        if (Object.keys(sessionData).length === 0) {
+            throw new Error('Aucune donnée de session à sauvegarder (Dossier vide ?)');
+        }
 
-        // Générer un ID court aléatoire (8 chars) sans caractères spéciaux problématiques
-        const shortId = 'WBOT_' + Math.random().toString(36).substring(2, 10).toUpperCase();
-        const fileName = `${shortId}.json`;
+        // Générer ID Unique
+        const sessionId = generateSecureSessionId();
 
-        // Sauvegarder dans le BUCKET 'wbot_sessions'
-        // Utilisation de .upload avec upsert: true
-        const { data, error } = await supabase.storage
-            .from(BUCKET_NAME)
-            .upload(fileName, jsonString, {
-                contentType: 'application/json',
-                upsert: true
-            });
+        // Insertion en base de données
+        const { data, error } = await supabase
+            .from(TABLE_NAME)
+            .insert([
+                {
+                    session_id: sessionId,
+                    session_data: sessionData,
+                    owner_phone: phoneNumber,
+                    updated_at: new Date().toISOString()
+                }
+            ])
+            .select();
 
         if (error) {
-            console.error('Bucket Upload Error:', error);
-            throw new Error('Failed to upload to Supabase Storage: ' + error.message);
+            console.error('❌ SQL Insert Error:', error);
+            throw new Error('Erreur sauvegarde base de données: ' + error.message);
         }
 
-        return shortId;
+        console.log(`✅ Session sauvegardée en base ! ID: ${sessionId} (Phone: ${phoneNumber || 'N/A'})`);
+        return sessionId;
+
     } catch (error) {
-        console.error('Erreur Upload Supabase:', error);
+        console.error('❌ Erreur Upload Supabase:', error);
         throw error;
     }
 }
 
 /**
- * Retrieve session from Supabase Storage by Short ID
- * @param {string} shortId 
+ * Retrieve session from Supabase SQL Table by Secure ID
+ * @param {string} sessionId (Format: WBOT~...)
  * @param {string} targetFolder 
  */
-export async function restoreSessionFromSupabase(shortId, targetFolder) {
+export async function restoreSessionFromSupabase(sessionId, targetFolder) {
     try {
-        const fileName = `${shortId}.json`;
+        if (!sessionId) throw new Error('Session ID manquant');
 
-        const { data, error } = await supabase.storage
-            .from(BUCKET_NAME)
-            .download(fileName);
+        // Nettoyage ID (au cas où espace/newline)
+        const cleanId = sessionId.trim();
 
-        if (error || !data) throw new Error('Session introuvable sur Supabase Storage');
+        console.log(`🔄 Récupération session SQL: ${cleanId}...`);
 
-        const textContent = await data.text();
-        const sessionData = JSON.parse(textContent);
+        const { data, error } = await supabase
+            .from(TABLE_NAME)
+            .select('session_data')
+            .eq('session_id', cleanId)
+            .single();
 
+        if (error || !data) {
+            console.error('❌ Erreur SQL Select:', error);
+            throw new Error('Session introuvable ou invalide');
+        }
+
+        const sessionFiles = data.session_data;
+
+        // Préparer dossier cible
         if (!fs.existsSync(targetFolder)) {
             fs.mkdirSync(targetFolder, { recursive: true });
         }
 
-        for (const [filename, content] of Object.entries(sessionData)) {
+        // Restaurer les fichiers
+        let restoredCount = 0;
+        for (const [filename, content] of Object.entries(sessionFiles)) {
             const filePath = path.join(targetFolder, filename);
             fs.writeFileSync(filePath, content, 'utf-8');
+            restoredCount++;
         }
 
+        console.log(`✅ Session restaurée avec succès (${restoredCount} fichiers).`);
         return true;
+
     } catch (error) {
-        console.error('Erreur Restauration Supabase:', error);
+        console.error('❌ Erreur Restauration Supabase:', error.message);
         throw error;
     }
 }

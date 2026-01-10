@@ -8,272 +8,194 @@ import {
 } from '../utils/textStyle.js';
 
 /**
- * Génère le menu .help complet et stylisé
+ * 📜 DATA: Liste des 50+ Fonctionnalités
+ * Classées par catégories pour générer les différents menus.
  */
-export function generateHelpMenu(config = {}) {
+const COMMAND_DATA = {
+    'automation': {
+        title: 'AUTOMATION & PLANIF 🕒',
+        cmds: [
+            { cmd: 'schedule', desc: 'Programmer Msg', detail: 'Programmer un message (Heure | @tag | Message)' },
+            { cmd: 'schstatus', desc: 'Programmer Statut', detail: 'Programmer la publication d\'un statut' },
+            { cmd: 'listplan', desc: 'Voir Tâches', detail: 'Voir tous les messages et statuts en attente' },
+            { cmd: 'remind', desc: 'Rappel Perso', detail: 'Le bot te rappelle une tâche à une heure précise' },
+            { cmd: 'away', desc: 'Mode AFK', detail: 'Réponse auto personnalisée quand tu es occupé' }
+        ]
+    },
+    'moderation': {
+        title: 'MODÉRATION 🛡️',
+        cmds: [
+            { cmd: 'tagall', desc: 'Tag Tout', detail: 'Mentionne tous les membres du groupe' }
+        ]
+    },
+    'productivity': {
+        title: 'PRODUCTIVITÉ 🧠',
+        cmds: [
+            { cmd: 'txt', desc: 'Voice to Text', detail: 'Transcrit une note vocale en texte' },
+            { cmd: 'ocr', desc: 'Img to Text', detail: 'Extrait le texte d\'une image' },
+            { cmd: 'pdf', desc: 'Img to PDF', detail: 'Transforme une image en PDF' }
+        ]
+    },
+    'multimedia': {
+        title: 'MULTIMÉDIA 🎨',
+        cmds: [
+            { cmd: 'tovideo', desc: 'Sticker->Vid', detail: 'Transforme un sticker animé en vidéo' },
+            { cmd: 'lyrics', desc: 'Paroles', detail: 'Affiche les paroles d\'une chanson' },
+            { cmd: 'voice', desc: 'Voice Changer', detail: 'Modifie une voix (robot, bebe, ecureuil)' }
+        ]
+    },
+    'tools': {
+        title: 'OUTILS 🛠️',
+        cmds: [
+            { cmd: 'id', desc: 'ID Groupe', detail: 'Obtenir l\'ID du groupe' },
+            { cmd: 'tempmail', desc: 'Email Jetable', detail: 'Génère un email temporaire' },
+            { cmd: 'qr', desc: 'QR Gen', detail: 'Transforme un texte ou lien en QR Code' },
+            { cmd: 'poll', desc: 'Sondage', detail: 'Crée un sondage' }
+        ]
+    },
+    'fun': {
+        title: 'FUN & SOCIAL 🎭',
+        cmds: [
+            { cmd: 'vibe', desc: 'Vibe Check', detail: 'Analyse l\'ambiance du groupe (Humour)' },
+            { cmd: 'confess', desc: 'Confession', detail: 'Envoie un aveu anonyme (En privé: .confess ID msg)' },
+            { cmd: 'anime', desc: 'Anime Finder', detail: 'Trouve l\'anime à partir d\'une image (Reply)' },
+            { cmd: 'voice', desc: 'Voice Changer', detail: 'Modifie une voix (robot, cureuil, echo)' },
+            { cmd: 'fakequote', desc: 'Faux Msg', detail: 'Crée une fausse citation élégante' },
+            { cmd: 'poll', desc: 'Sondage', detail: 'Crée un sondage interactif' },
+            { cmd: 'ttt', desc: 'Tic-Tac-Toe', detail: 'Morpion X O - Joue à 2 ! (.ttt puis 1-9)' },
+            { cmd: 'truth', desc: 'Truth or Dare', detail: 'Action ou Vérité aléatoire' },
+            { cmd: 'ship', desc: 'Ship', detail: 'Compatibilité amoureuse % (.ship @user1 @user2)' },
+            { cmd: 'guess', desc: 'Deviner Nombre', detail: 'Devine le nombre entre 1-100 (.guess <nb>)' },
+            { cmd: 'riddle', desc: 'Devinette', detail: 'Devinette aléatoire (.riddle answer pour réponse)' },
+            { cmd: 'quiz', desc: 'Quiz Culture G', detail: 'Question culture générale (répondre 1/2/3)' }
+        ]
+    }
+};
+
+/**
+ * MENU PRINCIPAL (Custom Design)
+ */
+export function generateHelpMenu(config) {
+    const { prefix, emoji, ownerName } = config;
+
+    return `╭───〔 🤖 𝗪𝗕𝗢𝗧 𝗠𝗘𝗡𝗨 〕───⬣
+│
+│ ߷ 𝗢𝘄𝗻𝗲𝗿 ➜ ${ownerName}
+│ ߷ 𝗣𝗿𝗲𝗳𝗶𝘅 ➜ ${prefix}
+│ ߷ 𝗩𝗲𝗿𝘀𝗶𝗼𝗻 ➜ 1.0.0
+│
+│ ━━ 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗘𝗦 𝗗𝗘 𝗕𝗔𝗦𝗘 ━━
+│
+│ 🏓 ${prefix}𝗽𝗶𝗻𝗴 ➜ Tester la vitesse du bot
+│ 📋 ${prefix}𝗺𝗲𝗻𝘂 ➜ Afficher ce menu
+│ ℹ️ ${prefix}𝗵𝗲𝗹𝗽 ➜ Afficher l'aide complète
+│
+│ ━━ 𝗦𝗔𝗨𝗩𝗘𝗚𝗔𝗥𝗗𝗘 & 𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗 ━━
+│
+│ 💾 ${prefix}𝘀𝗮𝘃𝗲 ➜ Sauvegarder un statut
+│ ⬇️ ${prefix}𝗱𝗹 <𝗹𝗶𝗲𝗻> ➜ Télécharger vidéo
+│ 🎨 ${prefix}𝘀 ➜ Créer sticker (reply)
+│
+│ ━━ 𝗔𝗨𝗧𝗢-𝗟𝗜𝗞𝗘 𝗦𝗧𝗔𝗧𝗨𝗧𝗦 ━━
+│
+│ 💚 ${prefix}𝗮𝘂𝘁𝗼𝗹𝗶𝗸𝗲 𝗼𝗻 ➜ Activer l'auto-like
+│ 🔥 ${prefix}𝗮𝘂𝘁𝗼𝗹𝗶𝗸𝗲 🔥 ➜ Activer avec emoji 🔥
+│ ⚙️ ${prefix}𝗮𝘂𝘁𝗼𝗹𝗶𝗸𝗲 𝗲𝗺𝗼𝗷𝗶 ❤️ ➜ Changer l'emoji
+│ ❌ ${prefix}𝗮𝘂𝘁𝗼𝗹𝗶𝗸𝗲 𝗼𝗳𝗳 ➜ Désactiver l'auto-like
+│
+│ ━━ 𝗚𝗥𝗢𝗨𝗣𝗘 & 𝗔𝗗𝗠𝗜𝗡 ━━
+│
+│ 📢 ${prefix}𝘁𝗮𝗴𝗮𝗹𝗹 <𝗺𝘀𝗴> ➜ Taguer tout le monde
+│ ⚙️ ${prefix}𝘀𝗲𝘁𝘁𝗮𝗴𝗲𝗺𝗼𝗷𝗶 <𝗲> ➜ Changer emoji Tag
+│ 👮 ${prefix}𝗮𝗱𝗺𝗶𝗻 ➜ Gérer les admins (Bientôt)
+│
+│ ━━ 𝗔𝗡𝗧𝗜-𝗗𝗘𝗟𝗘𝗧𝗘 ━━
+│
+│ 🗑️ ${prefix}𝗮𝗻𝘁𝗶𝗱𝗲𝗹𝗲𝘁𝗲 𝗮𝗹𝗹 ➜ Activer pour tout message
+│ 👤 ${prefix}𝗮𝗻𝘁𝗶𝗱𝗲𝗹𝗲𝘁𝗲 𝗽𝗺 ➜ Activer en privé seulement
+│ 👥 ${prefix}𝗮𝗻𝘁𝗶𝗱𝗲𝗹𝗲𝘁𝗲 𝗴𝗰 ➜ Activer en groupe seulement
+│ ❌ ${prefix}𝗮𝗻𝘁𝗶𝗱𝗲𝗹𝗲𝘁𝗲 𝗼𝗳𝗳 ➜ Désactiver l'anti-delete
+│
+│ ━━ 𝗜𝗡𝗧𝗘𝗟𝗟𝗜𝗚𝗘𝗡𝗖𝗘 𝗔𝗥𝗧𝗜𝗙𝗜𝗖𝗜𝗘𝗟𝗟𝗘 🧠 ━━
+│
+│ 🧠 ${prefix}𝗴𝗲𝗺𝗶𝗻𝗶 <𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻> ➜ Discuter avec l'IA
+│ 👀 ${prefix}𝘄𝗵𝗮𝘁 ➜ Analyser une image (reply)
+│ 📝 ${prefix}𝘀𝘂𝗺𝗺𝗮𝗿𝘆 ➜ Résumer un texte (reply)
+│ 🎨 ${prefix}𝗶𝗺𝗴 <𝗽𝗿𝗼𝗺𝗽𝘁> ➜ Générer une image
+│
+│ ━━ 𝗣𝗢𝗪𝗘𝗥 𝗨𝗦𝗘𝗥 ━━
+│
+│ ⚙️ ${prefix}𝘀𝗲𝘁𝗽𝗿𝗲𝗳𝗶𝘅 <𝘀𝘆𝗺𝗯𝗼𝗹𝗲> ➜ Changer le préfixe
+│ ⚡ ${prefix}𝘀𝗲𝘁𝘀𝗵𝗼𝗿𝘁𝗰𝘂𝘁 👽 𝘃𝘃 ➜ Créer raccourci emoji
+│ 🗑️ ${prefix}𝗱𝗲𝗹𝘀𝗵𝗼𝗿𝘁𝗰𝘂𝘁 👽 ➜ Supprimer raccourci
+│ 👁️ ${prefix}𝘃𝘃 ➜ Récupérer vue unique (Reply)
+│ 📸 ${prefix}𝗽𝗽 ➜ Récupérer Photo de Profil
+│
+│ -- 𝗩𝗢𝗦 𝗥𝗔𝗖𝗖𝗢𝗨𝗥𝗖𝗜𝗦 --
+│
+│ 👁️ 👁️ ➜ vv
+│ 👀 👀 ➜ vv
+│ 💾 💾 ➜ save
+│ 🏓 🏓 ➜ ping
+│ 📋 📋 ➜ menu
+│
+│ ⭐ 𝗧𝗜𝗣𝗦 ⭐
+│ Faites ${prefix}help <commande>
+│ Ex: ${prefix}help setshortcut
+│
+╰─────
+©2025 𝗪𝗕𝗢𝗧 𝗯𝘆 𝗟𝘂𝗶𝘀 𝗢𝗿𝘃𝗮𝗻𝗻`;
+}
+
+/**
+ * MENU COMPLET (.allmenu)
+ * Liste COMPACTE de toutes les commandes (Cmd + Desc courte).
+ */
+export function generateAllMenu(config = {}) {
     const prefix = config.prefix || '.';
-    const ownerName = config.ownerName || 'Admin';
+    let menu = createHeader('WBOT ALL-MENU', '📜');
 
-    let menu = createHeader('WBOT MENU', '🤖');
-
-    // Informations du bot
-    menu += `\n│ ${EMOJIS.bullet} ${toBold('Owner')} ${EMOJIS.arrow} ${ownerName}`;
-    menu += `\n│ ${EMOJIS.bullet} ${toBold('Prefix')} ${EMOJIS.arrow} ${prefix}`;
-    menu += `\n│ ${EMOJIS.bullet} ${toBold('Version')} ${EMOJIS.arrow} 1.0.0`;
-
-    // Section Commandes de Base
-    const baseCommands = [
-        createMenuItem(`${prefix}ping`, 'Tester la vitesse du bot', '🏓'),
-        createMenuItem(`${prefix}menu`, 'Afficher ce menu', EMOJIS.menu),
-        createMenuItem(`${prefix}help`, 'Afficher l\'aide complète', 'ℹ️')
-    ];
-    menu += createSection('COMMANDES DE BASE', baseCommands);
-
-    // Section Sauvegarde & Téléchargement
-    const saveCommands = [
-        createMenuItem(`${prefix}save`, 'Sauvegarder un statut', EMOJIS.save),
-        createMenuItem(`${prefix}dl <lien>`, 'Télécharger vidéo (TikTok/YT/Insta/FB)', '⬇️'),
-        createMenuItem(`${prefix}mp3 <lien>`, 'Extraire audio MP3', '🎵'),
-        createMenuItem(`${prefix}s`, 'Créer sticker (reply)', '🎨')
-    ];
-    menu += createSection('SAUVEGARDE & DOWNLOAD', saveCommands);
-
-    // Section Auto-Like
-    const likeCommands = [
-        createMenuItem(`${prefix}autolike on`, 'Activer l\'auto-like', EMOJIS.heart),
-        createMenuItem(`${prefix}autolike 🔥`, 'Activer avec emoji 🔥', '🔥'),
-        createMenuItem(`${prefix}autolike emoji ❤️`, 'Changer l\'emoji', '⚙️'),
-        createMenuItem(`${prefix}autolike off`, 'Désactiver l\'auto-like', '❌')
-    ];
-    menu += createSection('AUTO-LIKE STATUTS', likeCommands);
-
-    // Section Groupe & Admin
-    const groupCommands = [
-        createMenuItem(`${prefix}tagall <msg>`, 'Taguer tout le monde', '📢'),
-        createMenuItem(`${prefix}settagemoji <e>`, 'Changer emoji Tag', '⚙️'),
-        createMenuItem(`${prefix}admin`, 'Gérer les admins (Bientôt)', '👮')
-    ];
-    menu += createSection('GROUPE & ADMIN', groupCommands);
-
-
-    // Section Anti-Delete
-    const antiDeleteCommands = [
-        createMenuItem(`${prefix}antidelete all`, 'Activer pour tout message', '🗑️'),
-        createMenuItem(`${prefix}antidelete pm`, 'Activer en privé seulement', '👤'),
-        createMenuItem(`${prefix}antidelete gc`, 'Activer en groupe seulement', '👥'),
-        createMenuItem(`${prefix}antidelete off`, 'Désactiver l\'anti-delete', '❌')
-    ];
-    menu += createSection('ANTI-DELETE', antiDeleteCommands);
-
-    // Section Intelligence Artificielle (Nouveau)
-    const aiCommands = [
-        createMenuItem(`${prefix}gemini <question>`, 'Discuter avec l\'IA', '🧠'),
-        createMenuItem(`${prefix}what`, 'Analyser une image (reply)', '👀'),
-        createMenuItem(`${prefix}summary`, 'Résumer un texte (reply)', '📝'),
-        createMenuItem(`${prefix}img <prompt>`, 'Générer une image', '🎨')
-    ];
-    menu += createSection('INTELLIGENCE ARTIFICIELLE 🧠', aiCommands);
-
-    // Section Power User (Nouveau)
-    const powerCommands = [
-        createMenuItem(`${prefix}setprefix <symbole>`, 'Changer le préfixe', '⚙️'),
-        createMenuItem(`${prefix}setshortcut 👽 vv`, 'Créer raccourci emoji', '⚡'),
-        createMenuItem(`${prefix}delshortcut 👽`, 'Supprimer raccourci', '🗑️'),
-        createMenuItem(`${prefix}vv`, 'Récupérer vue unique (Reply)', '👁️'),
-        createMenuItem(`${prefix}pp`, 'Récupérer Photo de Profil', '📸')
-    ];
-    menu += createSection('POWER USER', powerCommands);
-
-    // Section Raccourcis Personnalisés
-    if (config.customShortcuts && Object.keys(config.customShortcuts).length > 0) {
-        let shortcutItems = [];
-        for (const [trigger, cmd] of Object.entries(config.customShortcuts)) {
-            // Afficher joliment
-            const emoji = /^\p{Emoji}/u.test(trigger) ? trigger : '⌨️';
-            const displayTrigger = trigger === emoji ? trigger : toBold(trigger);
-            shortcutItems.push(`│ ${emoji} ${displayTrigger} ${EMOJIS.arrow} ${cmd}`);
-        }
-        menu += `│\n│ ${toBold('-- VOS RACCOURCIS --')}\n│\n`;
-        menu += shortcutItems.join('\n') + '\n';
+    // Parcourir toutes les catégories
+    for (const [key, category] of Object.entries(COMMAND_DATA)) {
+        const items = category.cmds.map(c =>
+            createMenuItem(`${prefix}${c.cmd}`, c.desc, '🔹')
+        );
+        menu += createSection(category.title, items);
     }
 
-    // Pied de page
-    menu += `\n│\n`;
-    menu += `│ ${EMOJIS.star} ${toBold('TIPS')} ${EMOJIS.star}`;
-    menu += `\n│ Faites ${prefix}help <commande>`;
-    menu += `\n│ Ex: ${prefix}help setshortcut`;
-    menu += `\n│\n`;
     menu += createFooter();
-    menu += `\n\n${toBold('> ©2025 WBOT by Luis Orvann')}`;
-
+    menu += `\n\n> © WBOT Ultra`;
     return menu;
 }
 
 /**
- * Génère l'aide détaillée pour une commande spécifique
+ * GUIDE DÉTAILLÉ (.helpall)
+ * Liste DÉTAILLÉE (Cmd + Detail).
  */
-export function generateCommandHelp(command, config = {}) {
+export function generateHelpAll(config = {}) {
     const prefix = config.prefix || '.';
+    let msg = `╭───〔 📚 GUIDE DÉTAILLÉ 〕───⬣\n`;
 
-    const helpTexts = {
-        'dl': {
-            title: 'TÉLÉCHARGEMENT UNIVERSEL',
-            emoji: '⬇️',
-            description: 'Téléchargez des vidéos depuis TikTok, Instagram, Facebook, YouTube, etc.',
-            usage: [
-                `${prefix}dl <lien_video>`
-            ],
-            note: 'Le fichier sera envoyé directement dans la discussion'
-        },
-        'mp3': {
-            title: 'EXTRACTION MP3',
-            emoji: '🎵',
-            description: 'Convertir une vidéo en fichier audio MP3 haute qualité',
-            usage: [
-                `${prefix}mp3 <lien_video>`
-            ],
-            note: 'Le fichier sera envoyé directement dans la discussion'
-        },
-        's': {
-            title: 'CRÉATEUR DE STICKER',
-            emoji: '🎨',
-            description: 'Transforme une image ou une vidéo en sticker',
-            usage: [
-                `Répondez à une image/vidéo avec ${prefix}s`,
-                `Répondez à une image/vidéo avec ${prefix}sticker`
-            ],
-            note: 'Le sticker sera envoyé directement dans la discussion'
-        },
-        'gemini': {
-            title: 'CHAT IA (GEMINI PRO)',
-            emoji: '🧠',
-            description: 'Posez n\'importe quelle question à l\'IA la plus avancée de Google.',
-            usage: [
-                `${prefix}gemini Raconte une blague`,
-                `${prefix}gpt Qui est Elon Musk ?`
-            ]
-        },
-        'what': {
-            title: 'ANALYSE D\'IMAGE (VISION)',
-            emoji: '👀',
-            description: 'L\'IA regarde votre image et la décrit ou répond à une question dessus.',
-            usage: [
-                `Répondez à une image avec ${prefix}what`,
-                `Répondez à une image avec ${prefix}vision Que vois-tu ?`
-            ]
-        },
-        'summary': {
-            title: 'RÉSUMÉ INTELLIGENT',
-            emoji: '📝',
-            description: 'Résume instantanément un long texte ou message.',
-            usage: [
-                `Répondez à un pavé de texte avec ${prefix}summary`
-            ]
-        },
-        'img': {
-            title: 'GÉNÉRATEUR D\'IMAGES',
-            emoji: '🎨',
-            description: 'Transforme votre texte en image artistique.',
-            usage: [
-                `${prefix}img un chat cyberpunk dans l'espace`,
-                `${prefix}imagine voiture de sport rouge 4k`
-            ]
-        },
-        'setshortcut': {
-            title: 'CRÉER RACCOURCI',
-            emoji: '⚡',
-            description: 'Créez vos propres raccourcis magiques',
-            usage: [
-                `${prefix}setshortcut <trigger> <commande>`,
-                `${prefix}setshortcut 👽 vv`,
-                `${prefix}setshortcut s save`
-            ],
-            note: 'Vous pouvez utiliser un mot ou un emoji comme déclencheur'
-        },
-        'delshortcut': {
-            title: 'SUPPRIMER RACCOURCI',
-            emoji: '🗑️',
-            description: 'Supprime un raccourci existant',
-            usage: [
-                `${prefix}delshortcut 👽`
-            ]
-        },
-        'autolike': {
-            title: 'AUTO-LIKE STATUTS',
-            emoji: EMOJIS.heart,
-            description: 'Like automatiquement tous les statuts WhatsApp',
-            usage: [
-                `${prefix}autolike on → Active avec emoji par défaut`,
-                `${prefix}autolike 🔥 → Active avec emoji personnalisé`,
-                `${prefix}autolike emoji ❤️ → Change l'emoji`,
-                `${prefix}autolike off → Désactive`
-            ],
-            examples: [
-                `${prefix}autolike 💚`,
-                `${prefix}autolike emoji 🔥`
-            ]
-        },
-        'antidelete': {
-            title: 'ANTI-DELETE',
-            emoji: EMOJIS.delete,
-            description: 'Sauvegarde les messages avant suppression',
-            usage: [
-                `${prefix}antidelete all → Tous les messages`,
-                `${prefix}antidelete pm → Messages privés uniquement`,
-                `${prefix}antidelete gc → Groupes uniquement`,
-                `${prefix}antidelete status → Statuts uniquement`,
-                `${prefix}antidelete off → Désactiver`
-            ],
-            note: 'Les messages supprimés vous seront automatiquement renvoyés'
-        },
-        'save': {
-            title: 'SAUVEGARDER STATUT',
-            emoji: EMOJIS.save,
-            description: 'Sauvegarde un statut dans vos messages personnels',
-            usage: [
-                `Répondre à un statut avec ${prefix}save`
-            ],
-            note: 'Le statut sera envoyé dans votre chat personnel'
+    for (const [key, category] of Object.entries(COMMAND_DATA)) {
+        msg += `\n│ 🌟 *${category.title}*\n`;
+        category.cmds.forEach(c => {
+            msg += `│ 🔸 *${prefix}${c.cmd}* : ${c.detail}\n`;
+        });
+        msg += `│\n`;
+    }
+
+    msg += `╰──────────────────────────⬣`;
+    return msg;
+}
+
+// Export pour compatibilité
+export function generateCommandHelp(cmd, config) {
+    const categories = Object.values(COMMAND_DATA);
+    for (const cat of categories) {
+        const found = cat.cmds.find(c => c.cmd === cmd);
+        if (found) {
+            return `ℹ️ *AIDE : ${config.prefix}${cmd}*\n\n${found.detail}\n\nUsage: .${cmd} ...`;
         }
-    };
-
-    const helpData = helpTexts[command];
-    if (!helpData) {
-        return `${EMOJIS.error} Commande non trouvée. Utilisez ${prefix}help pour voir toutes les commandes.`;
     }
-
-    let help = createHeader(helpData.title, helpData.emoji);
-    help += `\n│\n│ ${helpData.description}\n│\n`;
-
-    if (helpData.usage) {
-        help += `│ ${toBold('UTILISATION')} :\n│\n`;
-        helpData.usage.forEach(usage => {
-            help += `│ ${EMOJIS.arrow} ${usage}\n`;
-        });
-        help += `│\n`;
-    }
-
-    if (helpData.features) {
-        help += `│ ${toBold('FONCTIONNALITÉS')} :\n│\n`;
-        helpData.features.forEach(feature => {
-            help += `│ ${EMOJIS.bullet} ${feature}\n`;
-        });
-        help += `│\n`;
-    }
-
-    if (helpData.examples) {
-        help += `│ ${toBold('EXEMPLES')} :\n│\n`;
-        helpData.examples.forEach(example => {
-            help += `│ ${EMOJIS.star} ${example}\n`;
-        });
-        help += `│\n`;
-    }
-
-    if (helpData.note) {
-        help += `│ ${EMOJIS.info} ${helpData.note}\n│\n`;
-    }
-
-    help += createFooter();
-
-    return help;
+    return `❌ Commande introuvable : ${cmd}`;
 }
