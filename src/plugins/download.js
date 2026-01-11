@@ -11,6 +11,12 @@ export async function handleDownload(sock, m, args, from) {
     }, { quoted: m });
 
     const url = args[0];
+    
+    // Message de feedback immédiat
+    await sock.sendMessage(from, { 
+        text: '⏳ *Téléchargement en cours...*\n\nVeuillez patienter.' 
+    }, { quoted: m });
+    
     await sock.sendMessage(from, { react: { text: '⬇️', key: m.key } });
 
     try {
