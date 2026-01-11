@@ -80,6 +80,8 @@ async function start() {
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
         }
 
+    } catch (startupError) {
+        console.error('❌ Erreur lors de la logique de démarrage Render:', startupError);
     }
 }
 
