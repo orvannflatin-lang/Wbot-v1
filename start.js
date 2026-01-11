@@ -35,7 +35,8 @@ async function start() {
     };
 
     const SESSION_ID = process.env.SESSION_ID;
-    const hasLocalSession = fs.existsSync('./auth_info') && fs.readdirSync('./auth_info').length > 0;
+    // FIX: Vérifier la présence de creds.json, pas juste le dossier (car mkdir le crée vide)
+    const hasLocalSession = fs.existsSync('./auth_info/creds.json');
 
     // TOUJOURS lancer le serveur web (pour l'interface)
     console.log('🌐 Serveur Web en écoute...\n');
