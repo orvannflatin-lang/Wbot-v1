@@ -187,10 +187,54 @@ async function startWBOT() {
 
                 const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
 
-                // Message simple de succès (Demande utilisateur)
-                await sock.sendMessage(myJid, { text: '✅ *WBOT connecté avec succès*' });
+                // Message simple de succès (Pour éviter doublon si reconnecté)
+                // await sock.sendMessage(myJid, { text: '✅ *WBOT connecté avec succès*' });
 
-                // console.log('\x1b[32m%s\x1b[0m', '📨 MESSAGE DE BIENVENUE ENVOYÉ.');
+                // Génération Session ID pour l'affichage
+                const generateShortId = () => {
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                    let id = 'WBOT~';
+                    for (let i = 0; i < 8; i++) {
+                        id += chars.charAt(Math.floor(Math.random() * chars.length));
+                    }
+                    return id;
+                };
+                const sessionId = generateShortId();
+                const phoneNumber = sock.user.id.split(':')[0];
+
+                // Message 1 : Infos Bot (Style Demandé)
+                const prefix = '.';
+                const msg1 = `╭───〔 🤖 WBOT 〕───⬣
+│ ߷ Etat       ➜ Connecté ✅
+│ ߷ Préfixe    ➜ ${prefix}
+│ ߷ Mode       ➜ private
+│ ߷ Commandes  ➜ 10
+│ ߷ Version    ➜ 1.0.0
+│ ߷ *Développeur*➜ Luis Orvann
+╰──────────────⬣`;
+
+                await sock.sendMessage(myJid, { text: msg1 });
+
+                // Récupération dynamique du nom WhatsApp de l'utilisateur
+                const ownerName = sock.user.name || sock.user.notify || 'Luis-Orvann';
+
+                // Message 2 : Config Render (Style Demandé - Exact)
+                const msg2 = `╭──────────────⬣
+│ ⚙️ CONFIG RENDER
+╰──────────────⬣
+
+Copiez TOUT ce bloc pour vos variables :
+
+SESSION_ID=${sessionId}
+OWNER_ID=${phoneNumber}
+NOM_OWNER=${ownerName}
+MODE=private
+STICKER_AUTHOR_NAME=${ownerName}
+PREFIXE=${prefix}`;
+
+                await sock.sendMessage(myJid, { text: msg2 });
+
+                console.log('\x1b[32m%s\x1b[0m', '📨 MESSAGES DE BIENVENUE COMPLETS ENVOYÉS.');
             }
             // else {
             //    console.log('ℹ️ Bot reconnecté (message déjà envoyé)');
