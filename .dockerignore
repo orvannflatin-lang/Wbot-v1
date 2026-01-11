@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+auth_info
+auth_info_pairing
+temp_sessions
+downloads
+wbot.db
+wbot.db-journal
+.env
+.git
+.gitignore
+.DS_Store
+Dockerfile
+README.md
