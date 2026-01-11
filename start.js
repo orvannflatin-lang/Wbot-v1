@@ -53,50 +53,56 @@ async function start() {
         console.log(`🌐 API Server running on port ${PORT}`);
         console.log(`📡 Frontend: http://localhost:${PORT}`);
         console.log(`📡 Health check: http://localhost:${PORT}/api/health\n`);
-    });
+        // 🚀 LOGIQUE DE DÉMARRAGE CRITIQUE SUR RENDER
+        try {
+            if (!hasLocalSession && SESSION_ID) {
+                console.log('☁️ ENV détecté : Restauration depuis Supabase via SESSION_ID...');
 
-    if (SESSION_ID || hasLocalSession) {
-        if (hasLocalSession && !SESSION_ID) {
-            console.log('📋 Mode: BOT (Session locale détectée)');
-        } else {
-            console.log('📋 Mode: BOT (Session ID détecté)');
+                // 1. Tenter de récupérer depuis Supabase
+                const restored = await restoreSessionFromSupabase(SESSION_ID);
+
+                if (restored) {
+                    console.log('✅ Session restaurée depuis la DB !');
+                } else {
+                    console.warn('⚠️ Session introuvable ou erreur DB. Le bot va démarrer en mode QR Scan.');
+                }
+            }
+            else if (hasLocalSession) {
+                console.log('📂 Session locale détectée (auth_info).');
+            }
+            else {
+                console.log('🆕 Pas de session. Mode QR Scan attente...');
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                console.log('📱 Ouvrez la page web WBOT pour connecter WhatsApp');
+                console.log('🔗 Local: http://localhost:3000');
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+            }
+
         }
-
-        // Lancer le bot
-        console.log('🚀 Démarrage du bot...\n');
-        await import('./index.js');
-    } else {
-        // Mode PAIRING uniquement
-        console.log('📋 Mode: PAIRING (Première configuration)');
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log('📱 Ouvrez la page web WBOT pour connecter WhatsApp');
-        console.log('🔗 Local: http://localhost:3000');
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-    }
 }
 
 // Handle errors
 // Handle errors - Filtre Anti-Spam (Bad MAC, etc.)
 process.on('uncaughtException', (error) => {
-    const msg = error?.message || String(error);
-    if (msg.includes('Bad MAC') || msg.includes('Session error') || msg.includes('Connection Closed') || msg.includes('socket hung up')) {
-        // Silence radio sur les erreurs de session connues (Session corrompue)
-        return;
-    }
-    console.error('❌ Erreur non capturée:', error);
-});
+            const msg = error?.message || String(error);
+            if (msg.includes('Bad MAC') || msg.includes('Session error') || msg.includes('Connection Closed') || msg.includes('socket hung up')) {
+                // Silence radio sur les erreurs de session connues (Session corrompue)
+                return;
+            }
+            console.error('❌ Erreur non capturée:', error);
+        });
 
-process.on('unhandledRejection', (reason) => {
-    const msg = reason?.message || String(reason);
-    if (msg.includes('Bad MAC') || msg.includes('Session error') || msg.includes('Connection Closed') || msg.includes('socket hung up')) {
-        // Silence radio
-        return;
-    }
-    console.error('❌ Promesse rejetée:', reason);
-});
+    process.on('unhandledRejection', (reason) => {
+        const msg = reason?.message || String(reason);
+        if (msg.includes('Bad MAC') || msg.includes('Session error') || msg.includes('Connection Closed') || msg.includes('socket hung up')) {
+            // Silence radio
+            return;
+        }
+        console.error('❌ Promesse rejetée:', reason);
+    });
 
-// Start the application
-start().catch((error) => {
-    console.error('❌ Erreur fatale:', error);
-    process.exit(1);
-});
+    // Start the application
+    start().catch((error) => {
+        console.error('❌ Erreur fatale:', error);
+        process.exit(1);
+    });
