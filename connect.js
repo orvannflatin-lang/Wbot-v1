@@ -95,19 +95,8 @@ async function startSocket(usePairing, phoneNumber) {
                 const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
                 const ownerNumber = sock.user.id.split(':')[0];
 
-                const finalMessage = `✅ *CONNEXION RÉUSSIE !*
-
-Voici vos variables à copier-coller sur Render pour activer votre bot :
-
-
-SESSION_ID=${sessionId}
-OWNER_ID=${ownerNumber}
-NOM_OWNER=${realOwnerName}
-MODE=private
-STICKER_AUTHOR_NAME=${realOwnerName}
-PREFIXE=.`;
-
-                // 3. Envoyer le message
+                // 3. Envoyer le message (SIMPLE, SANS VARIABLES)
+                const finalMessage = `✅ *WBOT CONNECTÉ AVEC SUCCÈS !*`;
                 await sock.sendMessage(myJid, { text: finalMessage });
 
                 console.log('📨 MESSAGE DE CONFIGURATION ENVOYÉ !');

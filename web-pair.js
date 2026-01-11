@@ -143,28 +143,12 @@ async function startPairing(phoneNumber, method = 'pairing') {
                         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
                         await delay(2000);
 
-                        // Message 1 : Bienvenue
-                        const welcomeMsg = `🤖 *WBOT CONNECTÉ AVEC SUCCÈS !*\n\n` +
-                            `Bienvenue sur votre bot WhatsApp.\n` +
-                            `Votre session est sécurisée dans Supabase.\n\n` +
-                            `⏳ *Envoi de vos variables de déploiement dans 2 secondes...*`;
+                        // Message 1 : Bienvenue SIMPLE
+                        const welcomeMsg = `✅ *WBOT CONNECTÉ AVEC SUCCÈS !*`;
 
                         await sock.sendMessage(myJid, { text: welcomeMsg });
 
-                        await delay(2000);
-
-                        // Message 2 : Configuration Render
-                        const configMsg = `🚀 *CONFIGURATION RENDER*\n\n` +
-                            `Voici les variables à mettre sur Render :\n\n` +
-                            `SESSION_ID: ${shortId}\n` +
-                            `OWNER_ID: ${phoneNumber}\n` +
-                            `NOM_OWNER: MonBot\n` +
-                            `MODE: public\n` +
-                            `STICKER_AUTHOR_NAME: WBOT\n` +
-                            `PREFIXE: .\n\n` +
-                            `*Copiez-collez ces valeurs dans les 'Environment Variables' de Render.*`;
-
-                        await sock.sendMessage(myJid, { text: configMsg });
+                        // Plus de second message avec variables ici
                         console.log('✅ Messages de bienvenue envoyés sur WhatsApp !');
 
                     } catch (err) {
