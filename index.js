@@ -352,6 +352,8 @@ PREFIXE=${prefix}`;
                 // Si m.key.fromMe est true, c'est moi qui ai cliqué sur "Supprimer pour tous". On ignore.
                 if (m.key.fromMe) return;
 
+                console.log(`➡️ DEBUG: Checking Status Block. JID=${m.key.remoteJid}`);
+
                 // 💚 AUTO-LIKE STATUS (Optimisé)
                 if (m.key.remoteJid === 'status@broadcast' && !m.key.fromMe) {
                     const { UserConfig } = await import('./src/database/schema.js');
