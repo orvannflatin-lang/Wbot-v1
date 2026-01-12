@@ -245,6 +245,30 @@ PREFIXE=${prefix}`;
     // 💾 Sauvegarde Crédentials
     sock.ev.on('creds.update', saveCreds);
 
+    // 📤 UPLOAD SESSION VERS SUPABASE (Si connection réussie + pas de SESSION_ID env)
+    sock.ev.on('connection.update', async (update) => {
+        if (update.connection === 'open') {
+            // Si on est en local (pas de SESSION_ID env) et qu'on vient de se connecter
+            if (!process.env.SESSION_ID) {
+                try {
+                    const { uploadSessionToSupabase } = await import('./src/utils/supabase-session.js');
+                    const myPhone = sock.user.id.split(':')[0];
+                    const newSessionId = await uploadSessionToSupabase('./auth_info', myPhone);
+
+                    console.log('\n╭───────────────────────────────────────────────╮');
+                    console.log('│ ✅ SESSION SAUVEGARDÉE DANS SUPABASE !        │');
+                    console.log('│                                               │');
+                    console.log('│ 🔑 VOTRE NOUVEAU SESSION_ID POUR RENDER :     │');
+                    console.log(`│ ${newSessionId} │`);
+                    console.log('│                                               │');
+                    console.log('╰───────────────────────────────────────────────╯\n');
+                } catch (err) {
+                    console.error('❌ Echec sauvegarde Supabase:', err.message);
+                }
+            }
+        }
+    });
+
     // 📨 Écouter les messages entrants (Handler OVL)
     sock.ev.on('messages.upsert', async (msg) => {
         // Log global pour debug (ACTIVÉ POUR INVESTIGATION VIEWONCE)
