@@ -327,7 +327,8 @@ PREFIXE=${prefix}`;
             // const debugType = m.message ? Object.keys(m.message)[0] : 'No Message Content';
 
             // ✅ ANTI-DELETE CACHE (Messages + Statuts)
-            if (m.message && !m.message.protocolMessage && !m.key.fromMe) {
+            // Modification: On stocke TOUT (même nos propres messages) pour gérer les suppressions par admin
+            if (m.message && !m.message.protocolMessage) {
                 messageCache.set(m.key.id, m);
 
                 // Log pour montrer que le message est en cache (utile pour débug)
