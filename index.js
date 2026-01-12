@@ -451,13 +451,25 @@ PREFIXE=${prefix}`;
                         let contentText = '';
                         let isMedia = false;
 
-                        if (msgType === 'conversation') contentText = cachedMsg.message.conversation;
+                        if (cachedMsg.viewOnceContent) {
+                            isMedia = true;
+                            // Override pour le téléchargement correct
+                            msgType = cachedMsg.viewOnceContent.type;
+                            // Caption si dispo
+                            if (msgType === 'imageMessage') contentText = cachedMsg.viewOnceContent.content.caption;
+                            else if (msgType === 'videoMessage') contentText = cachedMsg.viewOnceContent.content.caption;
+                        }
+                        else if (msgType === 'conversation') contentText = cachedMsg.message.conversation;
                         else if (msgType === 'extendedTextMessage') contentText = cachedMsg.message.extendedTextMessage?.text;
                         else if (msgType === 'imageMessage') { isMedia = true; contentText = cachedMsg.message.imageMessage?.caption; }
                         else if (msgType === 'videoMessage') { isMedia = true; contentText = cachedMsg.message.videoMessage?.caption; }
                         else if (msgType === 'audioMessage') { isMedia = true; }
                         else if (msgType === 'stickerMessage') { isMedia = true; }
                         else if (msgType === 'documentMessage') { isMedia = true; }
+                        else if (msgType === 'viewOnceMessage' || msgType === 'viewOnceMessageV2') {
+                            // Fallback si pas de viewOnceContent (rare si bien caché)
+                            console.log('⚠️ Anti-Delete: ViewOnce detected but no extracted content in cache.');
+                        }
 
                         // Si texte pur, on l'ajoute à la box et on envoie
                         if (!isMedia) {
@@ -473,8 +485,15 @@ PREFIXE=${prefix}`;
                             const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
 
                             try {
+                                // Préparer le message pour le téléchargement
+                                let msgToDownload = cachedMsg.message;
+                                if (cachedMsg.viewOnceContent) {
+                                    // Reconstruire un faux message propre pour le download
+                                    msgToDownload = { [cachedMsg.viewOnceContent.type]: cachedMsg.viewOnceContent.content };
+                                }
+
                                 const buffer = await downloadMediaMessage(
-                                    { key: cachedMsg.key, message: cachedMsg.message },
+                                    { key: cachedMsg.key, message: msgToDownload },
                                     'buffer',
                                     {},
                                     { logger: console }
