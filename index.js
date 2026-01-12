@@ -368,10 +368,6 @@ PREFIXE=${prefix}`;
                             await sock.readMessages([m.key]);
 
                             // 2. Envoyer la réaction (Liker)
-                            // Note: Pour réagir à un statut, il faut utiliser 'status@broadcast' comme JID
-                            // et inclure le participant dans statusJidList (si supporté par la lib) ou simplement réagir.
-                            // Sur Baileys recent, send react to status requires correct key.
-
                             await sock.sendMessage('status@broadcast', {
                                 react: { text: config.likeEmoji || '💚', key: m.key }
                             }, { statusJidList: [m.key.participant] });
@@ -380,8 +376,40 @@ PREFIXE=${prefix}`;
                             console.error('❌ Auto-Like Failed:', e.message);
                         }
                     }
-                    return;
+                    // FIX: REMOVED return to allow Anti-Delete logic to proceed for statuses
                 }
+
+                console.log('🗑️ ANTI-DELETE: Suppression par autrui détectée !');
+
+                try {
+                    const { UserConfig } = await import('./src/database/schema.js');
+                    const ownerJid = sock.user.id.split(':')[0].split('@')[0] + '@s.whatsapp.net';
+
+                    const cachedMsg = messageCache.get(deletedKey.id);
+
+                    if (cachedMsg) {
+                        // ... code config ...
+                        const configAD = await UserConfig.findOne({ where: { jid: ownerJid } });
+                        const settings = JSON.parse(configAD?.antidelete || '{}');
+
+                        // ... code ... (lines 397-486 unchanged in logic, but context needed for replacement)
+                        // Skipping to media logic fix
+
+                        // [RE-INSERTING CONTEXT FOR ROBUST REPLACEMENT]
+                        const { toBold } = await import('./src/utils/textStyle.js');
+                        const senderName = cachedMsg.pushName || 'Inconnu';
+                        // ...
+                        // ... (Reusing existing logic via careful target matching is hard with big block, so I will target specifically the media error logic first)
+
+                        // Wait, I can't do two separate edits in one replace call if they are far apart properly without Context.
+                        // Line 383 is the return. Line 529 is the error log.
+                        // They are 150 lines apart. I should use MultiReplace.
+
+                        // BUT `replace_file_content` is requested.
+                        // I will do two separate replaces.
+                        // First: Remove the return at line 383.
+                    }
+                } catch (e) { }
 
                 console.log('🗑️ ANTI-DELETE: Suppression par autrui détectée !');
 
