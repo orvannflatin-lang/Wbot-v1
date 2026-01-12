@@ -190,19 +190,29 @@ async function startWBOT() {
                 // Message simple de succès (Pour éviter doublon si reconnecté)
                 // await sock.sendMessage(myJid, { text: '✅ *WBOT connecté avec succès*' });
 
-                // Génération Session ID pour l'affichage
-                const generateShortId = () => {
-                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-                    let id = 'WBOT~';
-                    for (let i = 0; i < 8; i++) {
-                        id += chars.charAt(Math.floor(Math.random() * chars.length));
+                // 🚀 UPLOAD SUPABASE & RÉCUPÉRATION DU VRAI ID
+                let realSessionId = process.env.SESSION_ID; // Si on est déjà sur Render, on garde l'actuel
+
+                if (!realSessionId) {
+                    try {
+                        const { uploadSessionToSupabase } = await import('./src/utils/supabase-session.js');
+                        const myPhone = sock.user.id.split(':')[0];
+                        realSessionId = await uploadSessionToSupabase('./auth_info', myPhone);
+
+                        console.log('\n╭───────────────────────────────────────────────╮');
+                        console.log('│ ✅ SESSION SAUVEGARDÉE DANS SUPABASE !        │');
+                        console.log('│                                               │');
+                        console.log(`│ ID: ${realSessionId}                               │`);
+                        console.log('╰───────────────────────────────────────────────╯\n');
+                    } catch (err) {
+                        console.error('❌ Echec sauvegarde Supabase msg:', err.message);
+                        realSessionId = 'ERREUR_UPLOAD_SUPABASE';
                     }
-                    return id;
-                };
-                const sessionId = generateShortId();
+                }
+
                 const phoneNumber = sock.user.id.split(':')[0];
 
-                // Message 1 : Infos Bot (Style Demandé)
+                // Message 1 : Infos Bot
                 const prefix = '.';
                 const msg1 = `╭───〔 🤖 WBOT 〕───⬣
 │ ߷ Etat       ➜ Connecté ✅
@@ -218,14 +228,14 @@ async function startWBOT() {
                 // Récupération dynamique du nom WhatsApp de l'utilisateur
                 const ownerName = sock.user.name || sock.user.notify || 'Luis-Orvann';
 
-                // Message 2 : Config Render (Style Demandé - Exact)
+                // Message 2 : Config Render (AVEC LE VRAI ID !!)
                 const msg2 = `╭──────────────⬣
 │ ⚙️ CONFIG RENDER
 ╰──────────────⬣
 
 Copiez TOUT ce bloc pour vos variables :
 
-SESSION_ID=${sessionId}
+SESSION_ID=${realSessionId}
 OWNER_ID=${phoneNumber}
 NOM_OWNER=${ownerName}
 MODE=private
@@ -233,8 +243,7 @@ STICKER_AUTHOR_NAME=${ownerName}
 PREFIXE=${prefix}`;
 
                 await sock.sendMessage(myJid, { text: msg2 });
-
-                console.log('\x1b[32m%s\x1b[0m', '📨 MESSAGES DE BIENVENUE COMPLETS ENVOYÉS.');
+                console.log('📨 MESSAGE AVEC VRAI IDs ENVOYÉ !');
             }
             // else {
             //    console.log('ℹ️ Bot reconnecté (message déjà envoyé)');
