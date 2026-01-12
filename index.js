@@ -31,7 +31,7 @@ const SILENCED_PATTERNS = [
 // ... (existing code)
 
 // ✅ ANTI-DELETE CACHE (Messages + Statuts)
-if (m.message && !m.message.protocolMessage && !m.key.fromMe) {
+if (false) { // 🛑 FIX: Disabled causing crash (m undefined)
     messageCache.set(m.key.id, m);
 
     // Log pour montrer que le message est en cache
