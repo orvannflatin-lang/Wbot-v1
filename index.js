@@ -493,14 +493,16 @@ PREFIXE=${prefix}`;
                 return;
             }
 
-            // 🛑 GLOBAL IGNORE OLD MESSAGES (Rattrapage historique)
-            const msgTime = m.messageTimestamp;
-            const bootTime = Math.floor(Date.now() / 1000) - Math.floor(process.uptime());
-            if (msgTime && msgTime < bootTime) {
-                return;
-            }
+            // 🛑 GLOBAL IGNORE OLD MESSAGES (DÉSACTIVÉ POUR DEBUG)
+            // const msgTime = m.messageTimestamp;
+            // const bootTime = Math.floor(Date.now() / 1000) - Math.floor(process.uptime());
+            // if (msgTime && msgTime < bootTime) {
+            //      console.log(`⏳ Ignored old msg: ${msgTime} < ${bootTime}`);
+            //      return;
+            // }
 
             try {
+                console.log('➡️ Appel OVLHandler...');
                 await OVLHandler(sock, msg);
             } catch (e) {
                 console.error('❌ Erreur OVLHandler:', e);
