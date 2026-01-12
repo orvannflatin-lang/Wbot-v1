@@ -54,13 +54,11 @@ export async function OVLHandler(sock, msg) {
         return handleAutoLike(sock, m);
     }
 
-    const from = m.key.remoteJid;
-    const isMe = m.key.fromMe;
     // 🔧 FIX: Conserver le JID original pour les réponses contextuelles
     const originalFrom = m.key.remoteJid;
     const type = Object.keys(m.message)[0];
     const content = m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || m.message.videoMessage?.caption || '';
-    const body = content.trim();
+    // const body = content.trim(); // Moved up
 
     // 🔄 GESTION PRÉFIXE ET SHORTCUTS DYNAMIQUES
     let userPrefix = CONFIG.prefix;
