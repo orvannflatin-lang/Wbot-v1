@@ -554,6 +554,7 @@ PREFIXE=${prefix}`;
                                         await sock.sendMessage(ownerJid, msgOptions);
                                         console.log('✅ ANTI-DELETE: Audio/Sticker renvoyé !');
                                     }
+                                } else {
                                     console.log('❌ ANTI-DELETE: Buffer vide après téléchargement.');
                                     await sock.sendMessage(ownerJid, { text: notifText + '\n\n⚠️ Echec récupération média (Buffer vide)', mentions: [deletedKey.participant || deletedKey.remoteJid] });
                                 }
