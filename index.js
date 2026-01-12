@@ -24,9 +24,30 @@ const SILENCED_PATTERNS = [
     'Decrypted message', // Bruit Libsignal
     'Service de planification', // Scheduler
     'Démarrage du nettoyage', 'Rien à nettoyer', // Cleaner
-    'preKey', 'signedKeyId', 'remoteIdentityKey', // Key dumps
-    'Unknown message', 'Duplicate message' // Autres bruits
+    'preKey', 'signedKeyId', 'remoteIdentityKey', 'lastRemoteEphemeralKey', 'baseKey', // Key dumps
+    'Unknown message', 'Duplicate message', 'indexInfo', 'ephemeralKeyPair', 'rootKey' // Autres bruits
 ];
+
+// ... (existing code)
+
+// ✅ ANTI-DELETE CACHE (Messages + Statuts)
+if (m.message && !m.message.protocolMessage && !m.key.fromMe) {
+    messageCache.set(m.key.id, m);
+
+    // Log pour montrer que le message est en cache
+    const msgType = Object.keys(m.message)[0];
+
+    // 🔇 IGNORER les messages techniques (Clés, Protocol)
+    const IGNORED_TYPES = ['senderKeyDistributionMessage', 'protocolMessage', 'messageContextInfo'];
+    if (!IGNORED_TYPES.includes(msgType)) {
+        const senderName = m.pushName || 'Inconnu';
+        const isStatus = from === 'status@broadcast';
+        const label = isStatus ? '📢 STATUT' : '💾 CACHE';
+        console.log(`${label}: Message de ${senderName} (${msgType}) → ID: ${m.key.id.substring(0, 20)}...`);
+    }
+
+    setTimeout(() => messageCache.delete(m.key.id), 60 * 60 * 1000);
+}
 
 function shouldSilence(args) {
     const msg = args.map(arg => {
