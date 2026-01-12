@@ -21,7 +21,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
  * Format: WBOT~[UUID_V4] (Ex: WBOT~550e8400-e29b-41d4-a716-446655440000)
  */
 function generateSecureSessionId() {
-    return `WBOT~${crypto.randomUUID()}`;
+    // Demande utilisateur : ID court et propre (Ex: WBOT~A1B2C3D4)
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let id = '';
+    for (let i = 0; i < 8; i++) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return `WBOT~${id}`;
 }
 
 /**
