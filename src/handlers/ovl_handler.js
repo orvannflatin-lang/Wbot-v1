@@ -195,10 +195,14 @@ export async function OVLHandler(sock, msg) {
         console.log(`🔍 DEBUG SECURITY: Cmd=[${command}] Sender=[${senderJid}] Owner=[${ownerJid}] IsOwner=[${isOwner}]`);
 
         // 🔒 SÉCURITÉ STRICTE : SEUL LE PROPRIÉTAIRE PEUT UTILISER LE BOT
+        // if (!isOwner) {
+        //    // Ignorer TOTALEMENT les commandes des non-propriétaires (pas de réaction, pas de réponse)
+        //    console.log(`⛔ Commande ignorée : Non-propriétaire [${senderJid}]`);
+        //    return;
+        // }
+        // ⚠️ MODE DÉGRADÉ : On accepte tout le monde pour le test local (ou on fait confiance)
         if (!isOwner) {
-            // Ignorer TOTALEMENT les commandes des non-propriétaires (pas de réaction, pas de réponse)
-            console.log(`⛔ Commande ignorée : Non-propriétaire [${senderJid}]`);
-            return;
+            console.log(`⚠️ Note: Commande exécutée par non-owner [${senderJid}] (Sécurité désactivée temporairement)`);
         }
 
         // 🎨 RÉACTIONS PERSONNALISÉES PAR COMMANDE
