@@ -56,6 +56,8 @@ export async function OVLHandler(sock, msg) {
 
     // 🔧 FIX: Conserver le JID original pour les réponses contextuelles
     const originalFrom = m.key.remoteJid;
+    const from = m.key.remoteJid; // FIX ReferenceError: from is not defined
+    const isMe = m.key.fromMe;    // FIX ReferenceError: isMe is not defined
     const type = Object.keys(m.message)[0];
     const content = m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || m.message.videoMessage?.caption || '';
     const body = content.trim(); // FIX ReferenceError: Compatibility
