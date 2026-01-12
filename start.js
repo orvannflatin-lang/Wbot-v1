@@ -81,6 +81,10 @@ async function start() {
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
         }
 
+        // 🚀 DÉMARRAGE DU CŒUR DU BOT (index.js)
+        console.log('⚙️ Lancement du processus principal (index.js)...');
+        await import('./index.js');
+
     } catch (startupError) {
         console.error('❌ Erreur lors de la logique de démarrage Render:', startupError);
     }
