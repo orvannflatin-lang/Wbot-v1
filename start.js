@@ -62,7 +62,7 @@ async function start() {
             console.log('☁️ ENV détecté : Restauration depuis Supabase via SESSION_ID...');
 
             // 1. Tenter de récupérer depuis Supabase
-            const restored = await restoreSessionFromSupabase(SESSION_ID);
+            const restored = await restoreSessionFromSupabase(SESSION_ID, './auth_info');
 
             if (restored) {
                 console.log('✅ Session restaurée depuis la DB !');
