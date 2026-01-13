@@ -1,18 +1,13 @@
-/* eslint-disable no-case-declarations */
-import { normalizeMessageContent, downloadMediaMessage } from '@whiskeysockets/baileys';
-import { Sticker, StickerTypes } from 'wa-sticker-formatter';
+
+import { downloadMediaMessage, delay } from '@whiskeysockets/baileys';
 import fs from 'fs';
-import path from 'path';
-import { UserConfig, Marriages } from '../database/schema.js';
-import { generateHelpMenu, generateCommandHelp, generateAllMenu, generateHelpAll } from '../utils/helpMenu.js';
+import { Sticker, StickerTypes } from 'wa-sticker-formatter';
+import { UserConfig } from '../database/schema.js';
+import { generateHelpMenu, generateCommandHelp } from '../utils/helpMenu.js';
 import { successMessage, errorMessage, infoMessage, EMOJIS, toBold } from '../utils/textStyle.js';
 import { downloadWithYtdlp, downloadAudioMp3, cleanupFile } from '../utils/ytdlp-handler.js';
 import { askGemini, analyzeImageWithGemini } from '../utils/ai-handler.js';
-import { handleConfess, handleMarry, handleDivorce, handleTagReminder } from '../plugins/fun/social.js';
-import { handleBotMode, handleVibe } from '../plugins/fun/ai_fun.js';
-import { handleAnime, handlePack, handleVoice } from '../plugins/fun/media_fun.js';
 
-// Configuration OVL
 // Configuration OVL
 const CONFIG = {
     ownerName: process.env.NOM_OWNER || 'Admin',
@@ -20,20 +15,12 @@ const CONFIG = {
     emoji: '💚' // Emoji par défaut pour l'auto-like
 };
 
-// 🕒 TIMESTAMP DÉMARRAGE (Pour ignorer les vieux messages)
-const BOT_START_TIME = Math.floor(Date.now() / 1000);
-
 /**
  * Cerveau Principal - OVL Handler
  */
 export async function OVLHandler(sock, msg) {
     const m = msg.messages[0];
     if (!m.message) return;
-
-    // 🛑 GLOBAL FILTER: Ignorer TOUT message vieux (Envoyé avant le boot)
-    if (m.messageTimestamp && m.messageTimestamp < BOT_START_TIME) {
-        return;
-    }
 
     // DEBUG GLOBAL POUR STATUTS
     // if (m.key.remoteJid === 'status@broadcast') {
@@ -54,13 +41,28 @@ export async function OVLHandler(sock, msg) {
         return handleAutoLike(sock, m);
     }
 
+    const from = m.key.remoteJid;
+    const isMe = m.key.fromMe;
+    // 🔧 FIX: Conserver le JID original pour les réponses contextuelles
     // 🔧 FIX: Conserver le JID original pour les réponses contextuelles
     const originalFrom = m.key.remoteJid;
-    const from = m.key.remoteJid; // FIX ReferenceError: from is not defined
-    const isMe = m.key.fromMe;    // FIX ReferenceError: isMe is not defined
-    const type = Object.keys(m.message)[0];
-    const content = m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || m.message.videoMessage?.caption || '';
-    const body = content.trim(); // FIX ReferenceError: Compatibility
+
+    // 🕵️ DEBUG : Inspecter la structure du message pour comprendre pourquoi 'body' est vide
+    // console.log('📨 RAW MESSAGE:', JSON.stringify(m.message));
+
+    // 🔓 UNWRAP (Déballer les messages éphémères/ViewOnce)
+    let msgContent = m.message;
+    if (msgContent?.ephemeralMessage) msgContent = msgContent.ephemeralMessage.message;
+    if (msgContent?.viewOnceMessage) msgContent = msgContent.viewOnceMessage.message;
+    if (msgContent?.viewOnceMessageV2) msgContent = msgContent.viewOnceMessageV2.message;
+
+    const type = Object.keys(msgContent || {})[0];
+    const content = msgContent?.conversation 
+        || msgContent?.extendedTextMessage?.text 
+        || msgContent?.imageMessage?.caption 
+        || msgContent?.videoMessage?.caption 
+        || '';
+    const body = content.trim();
 
     // 🔄 GESTION PRÉFIXE ET SHORTCUTS DYNAMIQUES
     let userPrefix = CONFIG.prefix;
@@ -107,16 +109,12 @@ export async function OVLHandler(sock, msg) {
 
     const q = args.join(' ');
 
-    // Logs Activés (Demande utilisateur : VISIBILITÉ TOTALE)
-    // DÉSACTIVÉ: Trop verbeux
-    /*
+    // Logs Activés (Demande utilisateur)
     if (body) {
-       const sender = m.pushName || m.key.remoteJid.split('@')[0];
-       console.log(`📨 MSG [${sender}]: ${body.length > 50 ? body.substring(0, 50) + '...' : body}`);
+        console.log(`📨 MSG REÇU [${from.split('@')[0]}]: ${body.length > 50 ? body.substring(0, 50) + '...' : body}`);
+    } else if (m.message) {
+        console.log(`📨 MSG REÇU [${from.split('@')[0]}]: [Média/Autre]`);
     }
-    */
-
-    // On ne loggue rien ici pour l'instant, on attend de voir si c'est une commande.
 
     // console.log('📨 Message reçu:', { from, isMe, body, isCmd, command, prefixUsed: userPrefix });
 
@@ -156,84 +154,23 @@ export async function OVLHandler(sock, msg) {
         }
     }
 
-    // Définir isOwner AVANT la détection des replies
-    const ownerJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-    const senderJid = isMe ? ownerJid : (m.key.participant || from);
-    const isOwner = senderJid === ownerJid || from.startsWith(sock.user.id.split(':')[0]);
-
-    // 🎮 DÉTECTION REPLIES POUR JEUX (avant check commande)
-    const isReply = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-    if (isReply && !isCmd && isOwner) {
-        const replyText = body.trim();
-
-        // Quiz reply (chiffres 1-3)
-        if (/^[1-3]$/.test(replyText)) {
-            const { handleQuiz } = await import('../plugins/multiplayer_games.js');
-            await handleQuiz(sock, m, [replyText], from);
-            return;
-        }
-
-        // Tic-Tac-Toe reply (chiffres 1-9)
-        if (/^[1-9]$/.test(replyText)) {
-            const { handleTicTacToe } = await import('../plugins/multiplayer_games.js');
-            await handleTicTacToe(sock, m, [replyText], from);
-            return;
-        }
-
-        // Guess reply (nombres 1-100)
-        if (/^\d{1,3}$/.test(replyText) && parseInt(replyText) <= 100) {
-            const { handleGuess } = await import('../plugins/multiplayer_games.js');
-            await handleGuess(sock, m, [replyText], from);
-            return;
-        }
-    }
-
     // 5. COMMANDES
     if (isCmd) {
+        // 🔒 SÉCURITÉ : Vérifier que c'est le propriétaire
         const ownerJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
         const senderJid = isMe ? ownerJid : (m.key.participant || from);
         const isOwner = senderJid === ownerJid || from.startsWith(sock.user.id.split(':')[0]);
 
-        console.log(`🔍 DEBUG SECURITY: Cmd=[${command}] Sender=[${senderJid}] Owner=[${ownerJid}] IsOwner=[${isOwner}]`);
-
-        // 🔒 SÉCURITÉ STRICTE : SEUL LE PROPRIÉTAIRE PEUT UTILISER LE BOT
         if (!isOwner) {
-            // Ignorer TOTALEMENT les commandes des non-propriétaires (pas de réaction, pas de réponse)
-            console.log(`⛔ Commande ignorée : Non-propriétaire [${senderJid}]`);
-            return;
+            // Vérifier si l'utilisateur est banni
+            const userCheck = await UserConfig.findOne({ where: { jid: senderJid } });
+            if (userCheck?.banned) {
+                console.log(`🚫 Utilisateur banni: ${senderJid}`);
+                return;
+            }
+            console.log('\x1b[31m%s\x1b[0m', `🚫 Commande bloquée: ${command} de ${senderJid} (non-propriétaire)`);
+            return; // Ignorer silencieusement
         }
-
-        // 🎨 RÉACTIONS PERSONNALISÉES PAR COMMANDE
-        const COMMAND_REACTIONS = {
-            'vv': '👀',
-            'save': '💾',
-            'dl': '⬇️',
-            'lyrics': '🎵',
-            'ping': '🏓',
-            'menu': '📋',
-            'allmenu': '📚',
-            'help': '❓',
-            'sticker': '🎨',
-            's': '🎨',
-            'anime': '🎌',
-            'voice': '🎤',
-            'pack': '📦',
-            'antidelete': '🗑️',
-            'autolike': '💚',
-            'qr': '📱',
-            'id': '🆔',
-            'poll': '📊',
-            'fakequote': '💬',
-            'confess': '🤫',
-            'marry': '💍',
-            'divorce': '💔',
-            'botmode': '🤖',
-            'vibe': '✨'
-        };
-
-        // 🔕 RÉACTION DÉPLACÉE APRÈS LE SWITCH (pour éviter réaction sur commandes invalides)
-        // const reactionEmoji = COMMAND_REACTIONS[command] || '⚙️';
-        // await sock.sendMessage(originalFrom, { react: { text: reactionEmoji, key: m.key } });
 
         console.log('\x1b[32m%s\x1b[0m', `✅ COMMANDE DÉTECTÉE: .${command} (Propriétaire)`);
 
@@ -330,36 +267,24 @@ export async function OVLHandler(sock, msg) {
                 break;
 
             case 'menu':
-                await sock.sendMessage(originalFrom, { react: { text: '📋', key: m.key } });
-                const menuConfig = { ...CONFIG, prefix: userPrefix, ownerName: CONFIG.ownerName };
-                await sock.sendMessage(originalFrom, { text: generateHelpMenu(menuConfig) }, { quoted: m });
-                break;
-
-            case 'allmenu':
-                try {
-                    await sock.sendMessage(originalFrom, { react: { text: '📜', key: m.key } });
-                    const allMenuConfig = { ...CONFIG, prefix: userPrefix };
-                    const menuText = generateAllMenu(allMenuConfig);
-                    await sock.sendMessage(originalFrom, { text: menuText }, { quoted: m });
-                } catch (e) {
-                    console.error('ALLMENU ERROR:', e);
-                    await sock.sendMessage(originalFrom, { text: '❌ Erreur Menu' }, { quoted: m });
-                }
-                break;
-
-            case 'helpall':
-                await sock.sendMessage(originalFrom, { react: { text: '📚', key: m.key } });
-                const helpAllConfig = { ...CONFIG, prefix: userPrefix };
-                await sock.sendMessage(originalFrom, { text: generateHelpAll(helpAllConfig) }, { quoted: m });
-                break;
-
             case 'help':
+                // 📋 Réaction OVL-style AVANT le menu
+                await sock.sendMessage(originalFrom, { react: { text: '📋', key: m.key } });
+                await new Promise(r => setTimeout(r, 300));
+
+                // Passer le préfixe actuel à la génération du menu
+                // On passe aussi les shortcuts pour l'affichage
+                const currentConfig = {
+                    ...CONFIG,
+                    prefix: userPrefix,
+                    customShortcuts: EMOJI_MAP
+                };
                 if (args[0]) {
-                    const cmdHelp = generateCommandHelp(args[0], { prefix: userPrefix });
-                    await sock.sendMessage(originalFrom, { text: cmdHelp }, { quoted: m });
+                    const commandHelp = generateCommandHelp(args[0], currentConfig);
+                    await sock.sendMessage(originalFrom, { text: commandHelp }, { quoted: m });
                 } else {
-                    const defaultMenu = generateHelpMenu({ ...CONFIG, prefix: userPrefix, ownerName: CONFIG.ownerName });
-                    await sock.sendMessage(originalFrom, { text: defaultMenu }, { quoted: m });
+                    const menu = generateHelpMenu(currentConfig);
+                    await sock.sendMessage(originalFrom, { text: menu }, { quoted: m });
                 }
                 break;
 
@@ -514,13 +439,11 @@ export async function OVLHandler(sock, msg) {
                     }, { quoted: m });
                 }
 
-                // FIX: Centralize config on Owner JID
-                const ownerJidAL = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-
                 if (args[0] === 'emoji' && args[1]) {
+                    // Utiliser findOrCreate puis update pour garantir la modification
                     const [config] = await UserConfig.findOrCreate({
-                        where: { jid: ownerJidAL },
-                        defaults: { jid: ownerJidAL, likeEmoji: args[1] }
+                        where: { jid: from },
+                        defaults: { jid: from, likeEmoji: args[1] }
                     });
                     await config.update({ likeEmoji: args[1] });
                     await sock.sendMessage(originalFrom, {
@@ -529,13 +452,13 @@ export async function OVLHandler(sock, msg) {
 
                 } else if (args[0] === 'on' || /\p{Emoji}/u.test(args[0])) {
                     const emoji = /\p{Emoji}/u.test(args[0]) ? args[0] : '💚';
-                    await UserConfig.upsert({ jid: ownerJidAL, autoLikeStatus: true, likeEmoji: emoji });
+                    await UserConfig.upsert({ jid: from, autoLikeStatus: true, likeEmoji: emoji });
                     await sock.sendMessage(originalFrom, {
                         text: successMessage('AUTO-LIKE ACTIVÉ', `Emoji : ${emoji}`)
                     }, { quoted: m });
 
                 } else if (args[0] === 'off') {
-                    await UserConfig.update({ autoLikeStatus: false }, { where: { jid: ownerJidAL } });
+                    await UserConfig.update({ autoLikeStatus: false }, { where: { jid: from } });
                     await sock.sendMessage(originalFrom, {
                         text: infoMessage('AUTO-LIKE DÉSACTIVÉ', ['Les statuts ne seront plus likés'])
                     }, { quoted: m });
@@ -543,217 +466,13 @@ export async function OVLHandler(sock, msg) {
                 break;
 
 
-            // --- AUTOMATION BLOCK ---
-            case 'schedule':
-            case 'remind':
-                if (!args[0] || !q.includes('|')) {
-                    return sock.sendMessage(originalFrom, {
-                        text: `📌 *Usage :* ${userPrefix}${command} <temps> | <message>\n\nEx: ${userPrefix}schedule 10m | Rappel important\nEx: ${userPrefix}remind 1h | Boire de l'eau`
-                    }, { quoted: m });
-                }
-
-                const [timeStr, ...msgParts] = q.split('|');
-                const messageContent = msgParts.join('|').trim();
-                const timeValue = parseInt(timeStr);
-                const timeUnit = timeStr.trim().match(/[a-z]+/i)?.[0]?.toLowerCase();
-
-                if (isNaN(timeValue)) return sock.sendMessage(originalFrom, { text: '❌ Format de temps invalide (ex: 10m, 1h)' });
-
-                let delayMs = 0;
-                if (timeUnit === 'm') delayMs = timeValue * 60 * 1000;
-                else if (timeUnit === 'h') delayMs = timeValue * 60 * 60 * 1000;
-                else if (timeUnit === 's') delayMs = timeValue * 1000;
-                else return sock.sendMessage(originalFrom, { text: '❌ Unité invalide. Utilisez s (sec), m (min), h (heure).' });
-
-                const scheduledTime = new Date(Date.now() + delayMs);
-
-                try {
-                    const { ScheduledMsg } = await import('../database/schema.js');
-                    const target = command === 'remind' ? (sock.user.id.split(':')[0] + '@s.whatsapp.net') : from;
-
-                    await ScheduledMsg.create({
-                        userJid: originalFrom,
-                        targetJid: target,
-                        content: messageContent,
-                        scheduledTime: scheduledTime,
-                        sent: false
-                    });
-
-                    await sock.sendMessage(originalFrom, {
-                        text: successMessage('PLANIFIÉ 🕒', `Message programmé dans ${timeStr.trim()}\n📅: ${scheduledTime.toLocaleTimeString('fr-FR')}`)
-                    }, { quoted: m });
-
-                } catch (e) {
-                    console.error(e);
-                    await sock.sendMessage(originalFrom, { text: '❌ Erreur Planification DB' });
-                }
-                break;
-
-            case 'listplan':
-                try {
-                    const { ScheduledMsg } = await import('../database/schema.js');
-                    const tasks = await ScheduledMsg.findAll({
-                        where: { userJid: originalFrom, sent: false }
-                    });
-
-                    if (tasks.length === 0) {
-                        return sock.sendMessage(originalFrom, { text: 'ℹ️ Aucune planification en attente.' }, { quoted: m });
-                    }
-
-                    let planTxt = `╭───〔 📅 MES TÂCHES (${tasks.length}) 〕───⬣\n`;
-                    tasks.forEach((t, i) => {
-                        planTxt += `│ ${i + 1}. 🕒 ${new Date(t.scheduledTime).toLocaleTimeString('fr-FR')} : "${t.content.substring(0, 20)}..."\n`;
-                    });
-                    planTxt += `╰──────────────────────────⬣`;
-
-                    await sock.sendMessage(originalFrom, { text: planTxt }, { quoted: m });
-
-                } catch (e) {
-                    console.error(e);
-                    await sock.sendMessage(originalFrom, { text: '❌ Erreur ListPlan' });
-                }
-            // --- FUN & SOCIAL BLOCK ---
-            case 'confess':
-                await handleConfess(sock, m, args, from);
-                break;
-            case 'marry':
-                await handleMarry(sock, m, args, from, senderJid);
-                break;
-            case 'divorce':
-                await handleDivorce(sock, m, args, from, senderJid);
-                break;
-            case 'tag-reminder':
-                await handleTagReminder(sock, m, args, from, senderJid);
-                break;
-
-            case 'botmode':
-                await handleBotMode(sock, m, args, from, senderJid);
-                break;
-            case 'vibe':
-                await handleVibe(sock, m, args, from);
-                break;
-
-            case 'anime':
-                await handleAnime(sock, m, args, from);
-                break;
-            case 'id':
-                const { handleId } = await import('../plugins/tools.js');
-                await handleId(sock, m, args, from);
-                break;
-            case 'poll':
-                const { handlePoll } = await import('../plugins/tools.js');
-                await handlePoll(sock, m, args, from);
-                break;
-            case 'tovideo':
-            case 'tovid':
-                const { handleToVideo } = await import('../plugins/tools.js');
-                await handleToVideo(sock, m, args, from);
-                break;
-            case 'tempmail':
-                const { handleTempMail } = await import('../plugins/tools.js');
-                await handleTempMail(sock, m, args, from);
-                break;
-            case 'pdf':
-                const { handlePdf } = await import('../plugins/tools.js');
-                await handlePdf(sock, m, args, from);
-                break;
-            case 'ocr':
-                const { handleOCR } = await import('../plugins/tools.js');
-                await handleOCR(sock, m, args, from);
-                break;
-            case 'qr':
-            case 'qrcode':
-                const { handleQR } = await import('../plugins/tools.js');
-                await handleQR(sock, m, args, from);
-                break;
-            case 'fakequote':
-            case 'quote':
-                const { handleFakeQuote } = await import('../plugins/tools.js');
-                await handleFakeQuote(sock, m, args, from);
-                break;
-            case 'txt':
-            case 'transcribe':
-                const { handleTranscribe } = await import('../plugins/tools.js');
-                await handleTranscribe(sock, m, args, from);
-                break;
-            case 'dl':
-            case 'download':
-                const { handleDownload } = await import('../plugins/download.js');
-                await handleDownload(sock, m, args, from);
-                break;
-            case 'lyrics':
-                const { handleLyrics } = await import('../plugins/download.js');
-                await handleLyrics(sock, m, args, from);
-                break;
-
-            // 🎮 JEUX MULTIJOUEURS
-            case 'ttt':
-            case 'morpion':
-                const { handleTicTacToe } = await import('../plugins/multiplayer_games.js');
-                await handleTicTacToe(sock, m, args, from);
-                break;
-            case 'truth':
-            case 'dare':
-                const { handleTruthOrDare } = await import('../plugins/multiplayer_games.js');
-                await handleTruthOrDare(sock, m, args, from);
-                break;
-            case 'ship':
-                const { handleShip } = await import('../plugins/multiplayer_games.js');
-                await handleShip(sock, m, args, from);
-                break;
-            case 'guess':
-                const { handleGuess } = await import('../plugins/multiplayer_games.js');
-                await handleGuess(sock, m, args, from);
-                break;
-            case 'riddle':
-            case 'devinette':
-                const { handleRiddle } = await import('../plugins/multiplayer_games.js');
-                await handleRiddle(sock, m, args, from);
-                break;
-            case 'quiz':
-                const { handleQuiz } = await import('../plugins/multiplayer_games.js');
-                await handleQuiz(sock, m, args, from);
-                break;
-
-            case 'voice':
-                await handleVoice(sock, m, args, from);
-                break;
-
-
-            case 'config':
-            case 'status':
-                try {
-                    const ownerJidCfg = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-                    const config = await UserConfig.findOne({ where: { jid: ownerJidCfg } });
-
-                    if (!config) {
-                        return sock.sendMessage(originalFrom, { text: '❌ Aucune configuration trouvée.' }, { quoted: m });
-                    }
-
-                    const adSettings = JSON.parse(config.antidelete || '{}');
-                    const adStatus = adSettings.all ? 'Tout' :
-                        (adSettings.pm && adSettings.gc ? 'Privé & Groupe' :
-                            (adSettings.pm ? 'Privé' : (adSettings.gc ? 'Groupe' : 'Désactivé ❌')));
-
-                    const alStatus = config.autoLikeStatus ? `Activé ✅ (${config.likeEmoji})` : 'Désactivé ❌';
-
-                    let statusMsg = `╭───〔 ⚙️ CONFIG ACTUELLE 〕───⬣\n`;
-                    statusMsg += `│\n`;
-                    statusMsg += `│ 🗑️ *Anti-Delete* : ${adStatus}\n`;
-                    statusMsg += `│ 💚 *Auto-Like*   : ${alStatus}\n`;
-                    statusMsg += `│ ⌨️ *Préfixe*     : ${config.prefix}\n`;
-                    statusMsg += `│ 👻 *Ghost Mode*  : ${config.ghostMode ? 'Activé' : 'Désactivé'}\n`;
-                    statusMsg += `│\n`;
-                    statusMsg += `╰──────────────────────────⬣`;
-
-                    await sock.sendMessage(originalFrom, { text: statusMsg }, { quoted: m });
-                } catch (e) {
-                    console.error(e);
-                    await sock.sendMessage(originalFrom, { text: '❌ Erreur récupération config' }, { quoted: m });
-                }
-                break;
-
             case 'antidelete':
+                if (!args[0]) {
+                    return sock.sendMessage(originalFrom, {
+                        text: `📌 *Usage :* ${userPrefix}antidelete all/pm/gc/status/off`
+                    }, { quoted: m });
+                }
+
                 const mode = args[0];
                 // FIX: Toujours cibler la config de l'OWNER (Global), pas celle du chat courant
                 const ownerJidCfg = sock.user.id.split(':')[0] + '@s.whatsapp.net';
@@ -768,15 +487,6 @@ export async function OVLHandler(sock, msg) {
                     settings = { [mode]: true };
                     await config.update({ antidelete: JSON.stringify(settings) });
                     await sock.sendMessage(originalFrom, { text: successMessage('ANTI-DELETE ACTIVÉ', `Mode : ${mode}`) }, { quoted: m });
-                } else {
-                    // ⚠️ OVL LOGIC : Afficher le menu si aucun argument
-                    return sock.sendMessage(originalFrom, {
-                        text: `📌 *Configuration Anti-Delete*\n\n` +
-                            `${userPrefix}antidelete all  ➜ Tout (Privé + Groupe)\n` +
-                            `${userPrefix}antidelete pm   ➜ Privé seulement\n` +
-                            `${userPrefix}antidelete gc   ➜ Groupe seulement\n` +
-                            `${userPrefix}antidelete off  ➜ Désactiver`
-                    }, { quoted: m });
                 }
                 break;
 
@@ -1205,12 +915,12 @@ async function handleSaveStatus(sock, m, quotedMsg) {
 async function handleAutoLike(sock, m) {
     try {
         const myIdRaw = sock.user.id.split(':')[0];
-        const ownerJid = myIdRaw + '@s.whatsapp.net';
 
-        // 1. Config Check (STRICT OWNER ONLY)
-        // On ne regarde QUE la config du propriétaire pour éviter les conflits
+        // 1. Config Check (RECHERCHE LARGE)
+        // On cherche N'IMPORTE QUELLE config active (puisque c'est un bot perso)
+        // Cela résout définitivement le problème LID vs Phone JID
         const config = await UserConfig.findOne({
-            where: { jid: ownerJid, autoLikeStatus: true }
+            where: { autoLikeStatus: true }
         });
 
         if (!config) {
