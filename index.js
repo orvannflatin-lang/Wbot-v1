@@ -262,8 +262,8 @@ PREFIXE=${prefix}`;
         if (msg.messages && msg.messages[0]) {
             const m = msg.messages[0];
 
-            // 🛑 FILTRE TEMPOREL DÉSACTIVÉ (Sur demande utilisateur)
-            // Le bot répondra désormais à TOUS les messages reçus, même anciens.
+            // � Timestamp du message
+            const msgTime = (typeof m.messageTimestamp === 'number') ? m.messageTimestamp : m.messageTimestamp.low;
 
             // 🕵️ DEBUG CRITIQUE FORCE: Voir ce qui arrive VRAIMENT
             const msgKeys = m.message ? Object.keys(m.message) : [];
@@ -278,147 +278,231 @@ PREFIXE=${prefix}`;
             // const debugType = m.message ? Object.keys(m.message)[0] : 'No Message Content';
 
             // ✅ ANTI-DELETE CACHE
+            // ⚠️ IMPORTANT: ON CACHE TOUT (Même l'historique) pour que l'Anti-Delete fonctionne 
+            // sur les messages reçus avant le démarrage.
             if (m.message && !m.message.protocolMessage && !m.key.fromMe) {
                 messageCache.set(m.key.id, m);
                 setTimeout(() => messageCache.delete(m.key.id), 60 * 60 * 1000);
             }
 
-            // 🔍 DÉTECTION MANUELLE DES SUPPRESSIONS (ProtocolMessage)
-            if (m.message && m.message.protocolMessage && m.message.protocolMessage.type === 0) { // TYPE 0 = REVOKE
-                const deletedKey = m.message.protocolMessage.key;
+            // 🛑 FILTRE TEMPOREL POUR LES ACTIONS (Commandes, Notifs, etc.)
+            // On ne veut PAS réagir aux vieux messages, MAIS on voulait les cacher (juste au dessus).
+            // Donc le check est ICI.
+            const isNewMessage = msgTime >= BOT_START_TIME;
 
-                // 🔒 SECURE: On ignore mes propres suppressions (Demande Utilisateur)
-                if (deletedKey.fromMe || m.key.fromMe) return;
+            // LOG DEBUG TIMESTAMP
+            // console.log(`� Time Check: Msg=${msgTime} Start=${BOT_START_TIME} New=${isNewMessage}`);
 
-                console.log('🗑️ ANTI-DELETE: Suppression par autrui détectée !');
+            // �🔍 DÉTECTION MANUELLE DES SUPPRESSIONS (ProtocolMessage)
+            // ON TRAITE TOUT PROTOCOL MESSAGE, même "vieux" (au cas où l'horloge soit décalée), 
+            // car une suppression est un évent critique.
+            if (m.message && m.message.protocolMessage) {
+                console.log('🗑️ PROTOCOL DETECTED (Raw):', JSON.stringify(m.message.protocolMessage));
 
-                try {
-                    const { UserConfig } = await import('./src/database/schema.js');
-                    const ownerJid = sock.user.id.split(':')[0].split('@')[0] + '@s.whatsapp.net';
+                if (m.message.protocolMessage.type === 0) { // TYPE 0 = REVOKE
+                    const deletedKey = m.message.protocolMessage.key;
+                    console.log(`🗑️ REVOKE REQUEST: Key=${deletedKey.id} FromMe=${deletedKey.fromMe}`);
 
-                    const cachedMsg = messageCache.get(deletedKey.id);
+                    // 🔒 SECURE: On ignore mes propres suppressions (Demande Utilisateur)
+                    // if (deletedKey.fromMe || m.key.fromMe) return; // DISABLED FOR TESTING
 
-                    if (cachedMsg) {
-                        const config = await UserConfig.findOne({ where: { jid: ownerJid } });
+                    console.log('🗑️ ANTI-DELETE: Suppression par autrui confirmée !');
 
-                        if (!config || !config.antidelete) {
-                            return;
-                        }
+                    try {
+                        const { UserConfig } = await import('./src/database/schema.js');
+                        const ownerJid = sock.user.id.split(':')[0].split('@')[0] + '@s.whatsapp.net';
 
-                        const settings = JSON.parse(config.antidelete);
+                        const cachedMsg = messageCache.get(deletedKey.id);
+                        console.log(`📦 Cache Lookup for ${deletedKey.id}: ${cachedMsg ? 'HIT ✅' : 'MISS ❌'}`); // DEBUG
 
-                        // STRICT CHECK
-                        const isGroup = deletedKey.remoteJid.endsWith('@g.us');
-                        const isStatus = deletedKey.remoteJid === 'status@broadcast';
-                        const isPrivate = !isGroup && !isStatus;
+                        if (cachedMsg) {
+                            const config = await UserConfig.findOne({ where: { jid: ownerJid } });
 
-                        let shouldNotify = false;
-                        if (settings.all) shouldNotify = true;
-                        else {
-                            if (isPrivate && settings.pm) shouldNotify = true;
-                            if (isGroup && settings.gc) shouldNotify = true;
-                            if (isStatus && settings.status) shouldNotify = true;
-                        }
-
-                        if (!shouldNotify) {
-                            return; // Silencieux
-                        }
-
-                        const { toBold } = await import('./src/utils/textStyle.js');
-                        const senderName = cachedMsg.pushName || 'Inconnu';
-                        const senderNum = deletedKey.participant ? deletedKey.participant.split('@')[0] : deletedKey.remoteJid.split('@')[0];
-                        const typeLabel = isStatus ? 'Statut' : (isGroup ? 'Groupe' : 'Privé');
-                        const msgType = Object.keys(cachedMsg.message)[0];
-
-                        // Style OVL (Box)
-                        let notifText = `╭───〔 🗑️ ANTI-DELETE 〕───⬣\n`;
-                        notifText += `│ ߷ *Auteur*  ➜ ${senderName}\n`;
-
-                        // Infos Groupe & Deleter
-                        // Dans un UPSERT (Revoke), m.key.participant est celui qui a FAIT l'action (Le Suppresseur)
-                        // deletedKey.participant est l'auteur du message original
-                        if (isGroup) {
-                            const groupMetadata = await sock.groupMetadata(deletedKey.remoteJid).catch(e => { });
-                            const groupName = groupMetadata?.subject || 'Groupe Inconnu';
-
-                            // Le deleter est celui qui a envoyé le protocole message
-                            const deleterId = m.key.participant || m.key.remoteJid;
-                            const deleterNum = deleterId ? deleterId.split('@')[0] : '?';
-
-                            // Logique Nom du Suppresseur
-                            let deleterLabel = `@${deleterNum}`;
-                            if (deleterNum === senderNum) {
-                                deleterLabel = senderName; // C'est l'auteur lui-même
-                            } else {
-                                deleterLabel = `Admin (@${deleterNum})`; // C'est un admin ou autre
+                            if (!config || !config.antidelete) {
+                                return;
                             }
 
-                            notifText += `│ ߷ *Groupe*  ➜ ${groupName}\n`;
-                            notifText += `│ ߷ *Delete*  ➜ ${deleterLabel}\n`;
-                        }
+                            const settings = JSON.parse(config.antidelete);
 
-                        notifText += `│ ߷ *Heure*   ➜ ${new Date().toLocaleTimeString('fr-FR')}\n`;
-                        notifText += `│ ߷ *Type*    ➜ ${typeLabel}\n`;
+                            // STRICT CHECK
+                            const isGroup = deletedKey.remoteJid.endsWith('@g.us');
+                            const isStatus = deletedKey.remoteJid === 'status@broadcast';
+                            const isPrivate = !isGroup && !isStatus;
 
-                        // Logique Contenu / Média
-                        let contentText = '';
-                        let isMedia = false;
+                            let shouldNotify = false;
+                            if (settings.all) shouldNotify = true;
+                            else {
+                                if (isPrivate && settings.pm) shouldNotify = true;
+                                if (isGroup && settings.gc) shouldNotify = true;
+                                if (isStatus && settings.status) shouldNotify = true;
+                            }
 
-                        if (msgType === 'conversation') contentText = cachedMsg.message.conversation;
-                        else if (msgType === 'extendedTextMessage') contentText = cachedMsg.message.extendedTextMessage?.text;
-                        else if (msgType === 'imageMessage') { isMedia = true; contentText = cachedMsg.message.imageMessage?.caption; }
-                        else if (msgType === 'videoMessage') { isMedia = true; contentText = cachedMsg.message.videoMessage?.caption; }
-                        else if (msgType === 'audioMessage') { isMedia = true; }
-                        else if (msgType === 'stickerMessage') { isMedia = true; }
-                        else if (msgType === 'documentMessage') { isMedia = true; }
+                            if (!shouldNotify) {
+                                return; // Silencieux
+                            }
 
-                        // Si texte pur, on l'ajoute à la box et on envoie
-                        if (!isMedia) {
-                            if (contentText) notifText += `│ ߷ *Message* ➜ ${contentText}\n`;
-                            notifText += `╰──────────────⬣`;
-                            await sock.sendMessage(ownerJid, { text: notifText, mentions: [deletedKey.participant || deletedKey.remoteJid] });
-                        }
-                        // Si Média, on envoie le média AVEC la box en légende
-                        else {
-                            notifText += `╰──────────────⬣\n`;
-                            if (contentText) notifText += `\n📝 *Légende originale :*\n${contentText}`;
+                            const { toBold } = await import('./src/utils/textStyle.js');
+                            const senderName = cachedMsg.pushName || 'Inconnu';
+                            const senderNum = deletedKey.participant ? deletedKey.participant.split('@')[0] : deletedKey.remoteJid.split('@')[0];
+                            const typeLabel = isStatus ? 'Statut' : (isGroup ? 'Groupe' : 'Privé');
+                            // Détection plus robuste du type de message (ignorer messageContextInfo etc)
+                            const contentKeys = Object.keys(cachedMsg.message);
+                            const knownTypes = ['conversation', 'extendedTextMessage', 'imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage', 'viewOnceMessage', 'viewOnceMessageV2'];
+                            const msgType = contentKeys.find(key => knownTypes.includes(key)) || contentKeys[0];
+                            console.log('🗑️ Anti-Delete Type detecté:', msgType);
 
-                            // On clone le message pour ne pas modifier le cache
-                            const msgContent = JSON.parse(JSON.stringify(cachedMsg.message));
-                            const specificContent = msgContent[msgType];
+                            // Style OVL (Box)
+                            let notifText = `╭───〔 🗑️ ANTI-DELETE 〕───⬣\n`;
+                            notifText += `│ ߷ *Auteur*  ➜ ${senderName}\n`;
 
-                            // On injecte notre texte OVL en caption/contexInfo
-                            if (specificContent) {
-                                specificContent.caption = notifText;
-                                // Pour les stickers/audio qui n'ont pas de caption, on envoie le texte d'abord puis le média
-                                const hasCaptionSupport = (msgType === 'imageMessage' || msgType === 'videoMessage' || msgType === 'documentMessage');
+                            // Infos Groupe & Deleter
+                            // Dans un UPSERT (Revoke), m.key.participant est celui qui a FAIT l'action (Le Suppresseur)
+                            // deletedKey.participant est l'auteur du message original
+                            if (isGroup) {
+                                const groupMetadata = await sock.groupMetadata(deletedKey.remoteJid).catch(e => { });
+                                const groupName = groupMetadata?.subject || 'Groupe Inconnu';
 
-                                if (hasCaptionSupport) {
-                                    // Envoi du média modifié (Caption = OVL Info)
-                                    await sock.sendMessage(ownerJid, { forward: { key: cachedMsg.key, message: msgContent } }, { caption: notifText });
-                                    // Fallback si le forward avec caption ne marche pas comme prévu (certaines libs ignorent caption sur forward)
-                                    // Mais testons d'abord. Si ça rate, on verra.
-                                    // Alternative: Reconstruire le message
-                                    // await sock.sendMessage(ownerJid, { [msgType.replace('Message', '')]: specificContent, caption: notifText });
+                                // Le deleter est celui qui a envoyé le protocole message
+                                const deleterId = m.key.participant || m.key.remoteJid;
+                                const deleterNum = deleterId ? deleterId.split('@')[0] : '?';
+
+                                // Logique Nom du Suppresseur
+                                let deleterLabel = `@${deleterNum}`;
+                                if (deleterNum === senderNum) {
+                                    deleterLabel = senderName; // C'est l'auteur lui-même
                                 } else {
-                                    // Stickers, Vocaux -> Pas de caption possible -> Envoi Texte PUIS Média
-                                    await sock.sendMessage(ownerJid, { text: notifText, mentions: [deletedKey.participant || deletedKey.remoteJid] });
-                                    await sock.sendMessage(ownerJid, { forward: { key: cachedMsg.key, message: cachedMsg.message } });
+                                    deleterLabel = `Admin (@${deleterNum})`; // C'est un admin ou autre
+                                }
+
+                                notifText += `│ ߷ *Groupe*  ➜ ${groupName}\n`;
+                                notifText += `│ ߷ *Delete*  ➜ ${deleterLabel}\n`;
+                            }
+
+                            notifText += `│ ߷ *Heure*   ➜ ${new Date().toLocaleTimeString('fr-FR')}\n`;
+                            notifText += `│ ߷ *Type*    ➜ ${typeLabel}\n`;
+
+                            // Logique Contenu / Média
+                            let contentText = '';
+                            let isMedia = false;
+
+                            if (msgType === 'conversation') contentText = cachedMsg.message.conversation;
+                            else if (msgType === 'extendedTextMessage') contentText = cachedMsg.message.extendedTextMessage?.text;
+                            else if (msgType === 'imageMessage') { isMedia = true; contentText = cachedMsg.message.imageMessage?.caption; }
+                            else if (msgType === 'videoMessage') { isMedia = true; contentText = cachedMsg.message.videoMessage?.caption; }
+                            else if (msgType === 'audioMessage') { isMedia = true; }
+                            else if (msgType === 'stickerMessage') { isMedia = true; }
+                            else if (msgType === 'documentMessage') { isMedia = true; }
+
+                            // Si texte pur, on l'ajoute à la box et on envoie
+                            if (!isMedia) {
+                                if (contentText) notifText += `│ ߷ *Message* ➜ ${contentText}\n`;
+                                notifText += `╰──────────────⬣`;
+                                await sock.sendMessage(ownerJid, { text: notifText, mentions: [deletedKey.participant || deletedKey.remoteJid] });
+                            }
+                            // Si Média, on envoie le média AVEC la box en légende
+                            else {
+                                notifText += `╰──────────────⬣\n`;
+                                if (contentText) notifText += `\n📝 *Légende originale :*\n${contentText}`;
+
+                                // On clone le message pour ne pas modifier le cache
+                                const msgContent = JSON.parse(JSON.stringify(cachedMsg.message));
+                                const specificContent = msgContent[msgType];
+
+                                // On injecte notre texte OVL en caption/contexInfo
+                                if (specificContent) {
+                                    specificContent.caption = notifText;
+                                    const hasCaptionSupport = (msgType === 'imageMessage' || msgType === 'videoMessage' || msgType === 'documentMessage');
+
+                                    // 🔧 FIX CRITIQUE: Télécharger le buffer AVANT d'envoyer
+                                    // Sinon le média est "non disponible" car l'URL originale est révoquée
+                                    try {
+                                        const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
+                                        const buffer = await downloadMediaMessage(
+                                            cachedMsg,
+                                            'buffer',
+                                            {},
+                                            { logger: undefined }
+                                        );
+
+                                        if (!buffer || buffer.length === 0) {
+                                            throw new Error('Buffer vide ou null');
+                                        }
+
+                                        console.log(`✅ Média téléchargé: ${buffer.length} bytes`);
+
+                                        // Envoi du buffer téléchargé
+                                        let contentToSend = {};
+                                        if (hasCaptionSupport) {
+                                            if (msgType === 'imageMessage') {
+                                                contentToSend = { image: buffer, caption: notifText };
+                                            } else if (msgType === 'videoMessage') {
+                                                contentToSend = { video: buffer, caption: notifText };
+                                            } else if (msgType === 'documentMessage') {
+                                                contentToSend = {
+                                                    document: buffer,
+                                                    caption: notifText,
+                                                    mimetype: specificContent.mimetype || 'application/octet-stream',
+                                                    fileName: specificContent.fileName || 'document'
+                                                };
+                                            }
+                                            await sock.sendMessage(ownerJid, contentToSend);
+                                        } else {
+                                            // Stickers/Audio: texte puis média
+                                            await sock.sendMessage(ownerJid, {
+                                                text: notifText,
+                                                mentions: [deletedKey.participant || deletedKey.remoteJid]
+                                            });
+
+                                            if (msgType === 'stickerMessage') {
+                                                contentToSend = { sticker: buffer };
+                                            } else if (msgType === 'audioMessage') {
+                                                contentToSend = {
+                                                    audio: buffer,
+                                                    mimetype: specificContent.mimetype || 'audio/ogg; codecs=opus',
+                                                    ptt: specificContent.ptt || false
+                                                };
+                                            }
+                                            await sock.sendMessage(ownerJid, contentToSend);
+                                        }
+
+                                    } catch (downloadError) {
+                                        console.error('❌ Téléchargement média échoué:', downloadError.message);
+                                        // Fallback: notifier sans média
+                                        await sock.sendMessage(ownerJid, {
+                                            text: notifText + '\n\n⚠️ *Média non récupérable*\n(Le fichier a expiré des serveurs WhatsApp)'
+                                        });
+                                    }
                                 }
                             }
                         }
 
+                    } catch (e) {
+                        console.error('❌ Erreur Anti-Delete Upsert:', e);
                     }
-                } catch (e) {
-                    console.error('❌ Erreur Anti-Delete Upsert:', e);
-                }
-                return;
-            }
+                    return;
+                } // End of ProtocolMessage Type 0 check
+            } // End of ProtocolMessage exists check
 
-            try {
-                await OVLHandler(sock, msg);
-            } catch (e) {
-                console.error('❌ Erreur OVLHandler:', e);
+            // Seulement traiter les commandes si c'est un NOUVEAU message
+            if (isNewMessage) {
+                // 🔒 FILTRE: Ignorer les messages que le bot s'envoie à lui-même
+                // (Par ex: vue unique envoyée dans la messagerie privée)
+                const myJidClean = sock.user.id.split(':')[0].split('@')[0] + '@s.whatsapp.net';
+                const isToMyself = m.key.remoteJid === myJidClean && m.key.fromMe;
+
+                if (isToMyself) {
+                    // Silencieux: ne pas traiter les messages que le bot s'envoie
+                    // Cela évite les boucles et les messages parasites "Transféré..."
+                    return;
+                }
+
+                try {
+                    await OVLHandler(sock, msg);
+                } catch (e) {
+                    console.error('❌ Erreur OVLHandler:', e);
+                }
+            } else {
+                // console.log('⏳ Message historique ignoré (mais caché)');
             }
 
             // 🗄️ CACHE AGRESSIF POUR ANTI-DELETE & VIEWONCE
@@ -534,6 +618,7 @@ PREFIXE=${prefix}`;
 
     // 🗑️ ANTI-DELETE: Écouter les suppressions de messages
     sock.ev.on('messages.delete', async (deletion) => {
+        console.log('🗑️ EVENT MESSAGES.DELETE TRIGGERED:', JSON.stringify(deletion)); // DEBUG
         try {
             const { UserConfig } = await import('./src/database/schema.js');
             const ownerJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';

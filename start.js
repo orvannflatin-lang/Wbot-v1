@@ -11,13 +11,7 @@ async function start() {
     console.log('╭──────────────────────╮');
     console.log('│   🤖 WBOT Starter   │');
     // 🔇 SILENCIEUX SUPRÊME : Filtrage bas niveau
-    const API_LOG_FILTER = [
-        'Closing session', 'SessionEntry', 'chains:', 'registrationId', 'currentRatchet',
-        'AutoLike', 'STATUS DETECTÉ', 'Statut ignoré', 'preKey', 'chainKey', 'Buffer',
-        'closing session', 'Bad MAC', 'MessageCounterError',
-        'Connexion Base de Données', 'printQRInTerminal', 'deprecated', 'DeprecationWarning',
-        'WBOT CONNECTÉ', 'User:', 'Base de Données synchronisée', 'MESSAGES DE BIENVENUE'
-    ];
+    const API_LOG_FILTER = ['Closing session', 'SessionEntry', 'AutoLike', 'STATUS DETECTÉ', 'Statut ignoré', 'preKey', 'chainKey', 'Buffer'];
 
     const shouldIgnore = (args) => {
         const msg = args.map(String).join(' ');
@@ -35,8 +29,7 @@ async function start() {
     };
 
     const SESSION_ID = process.env.SESSION_ID;
-    // FIX: Vérifier la présence de creds.json, pas juste le dossier (car mkdir le crée vide)
-    const hasLocalSession = fs.existsSync('./auth_info/creds.json');
+    const hasLocalSession = fs.existsSync('./auth_info') && fs.readdirSync('./auth_info').length > 0;
 
     // TOUJOURS lancer le serveur web (pour l'interface)
     console.log('🌐 Serveur Web en écoute...\n');
@@ -56,37 +49,23 @@ async function start() {
         console.log(`📡 Health check: http://localhost:${PORT}/api/health\n`);
     });
 
-    // 🚀 LOGIQUE DE DÉMARRAGE CRITIQUE SUR RENDER
-    try {
-        if (!hasLocalSession && SESSION_ID) {
-            console.log('☁️ ENV détecté : Restauration depuis Supabase via SESSION_ID...');
-
-            // 1. Tenter de récupérer depuis Supabase
-            const restored = await restoreSessionFromSupabase(SESSION_ID, './auth_info');
-
-            if (restored) {
-                console.log('✅ Session restaurée depuis la DB !');
-            } else {
-                console.warn('⚠️ Session introuvable ou erreur DB. Le bot va démarrer en mode QR Scan.');
-            }
-        }
-        else if (hasLocalSession) {
-            console.log('📂 Session locale détectée (auth_info).');
-        }
-        else {
-            console.log('🆕 Pas de session. Mode QR Scan attente...');
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('📱 Ouvrez la page web WBOT pour connecter WhatsApp');
-            console.log('🔗 Local: http://localhost:3000');
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    if (SESSION_ID || hasLocalSession) {
+        if (hasLocalSession && !SESSION_ID) {
+            console.log('📋 Mode: BOT (Session locale détectée)');
+        } else {
+            console.log('📋 Mode: BOT (Session ID détecté)');
         }
 
-        // 🚀 DÉMARRAGE DU CŒUR DU BOT (index.js)
-        console.log('⚙️ Lancement du processus principal (index.js)...');
+        // Lancer le bot
+        console.log('🚀 Démarrage du bot...\n');
         await import('./index.js');
-
-    } catch (startupError) {
-        console.error('❌ Erreur lors de la logique de démarrage Render:', startupError);
+    } else {
+        // Mode PAIRING uniquement
+        console.log('📋 Mode: PAIRING (Première configuration)');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('📱 Ouvrez la page web WBOT pour connecter WhatsApp');
+        console.log('🔗 Local: http://localhost:3000');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     }
 }
 

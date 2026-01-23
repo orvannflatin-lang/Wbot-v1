@@ -57,10 +57,10 @@ export async function OVLHandler(sock, msg) {
     if (msgContent?.viewOnceMessageV2) msgContent = msgContent.viewOnceMessageV2.message;
 
     const type = Object.keys(msgContent || {})[0];
-    const content = msgContent?.conversation 
-        || msgContent?.extendedTextMessage?.text 
-        || msgContent?.imageMessage?.caption 
-        || msgContent?.videoMessage?.caption 
+    const content = msgContent?.conversation
+        || msgContent?.extendedTextMessage?.text
+        || msgContent?.imageMessage?.caption
+        || msgContent?.videoMessage?.caption
         || '';
     const body = content.trim();
 
@@ -422,13 +422,26 @@ export async function OVLHandler(sock, msg) {
                 const quotedMsg = m.message.extendedTextMessage.contextInfo.quotedMessage;
                 const viewOnceMsg = quotedMsg.viewOnceMessage || quotedMsg.viewOnceMessageV2;
 
+                // 🔧 NETTOYER le message quoted de toutes ses métadonnées parasites
+                // (forwarding info, contextInfo, etc.) qui créent les messages "Transféré..."
+                const cleanMessage = (msg) => {
+                    if (!msg) return msg;
+                    const cleaned = { ...msg };
+                    // Supprimer toutes les métadonnées
+                    delete cleaned.contextInfo;
+                    delete cleaned.forwardingScore;
+                    delete cleaned.isForwarded;
+                    return cleaned;
+                };
+
                 if (viewOnceMsg) {
                     const actualMsg = viewOnceMsg.message;
-                    await handleManualViewOnce(sock, m, actualMsg);
+                    const cleanedActualMsg = cleanMessage(actualMsg);
+                    await handleManualViewOnce(sock, m, cleanedActualMsg);
                 } else {
-                    // Essayer de voir si c'est directement un media ViewOnce sans container (cas rares) ou juste un media normal
-                    // Pour être sympa, on permet aussi de voler les images normales avec .vv
-                    await handleManualViewOnce(sock, m, quotedMsg);
+                    // Nettoyer quotedMsg avant de le passer
+                    const cleanedQuotedMsg = cleanMessage(quotedMsg);
+                    await handleManualViewOnce(sock, m, cleanedQuotedMsg);
                 }
                 break;
 
@@ -920,7 +933,8 @@ async function handleAutoLike(sock, m) {
         // On cherche N'IMPORTE QUELLE config active (puisque c'est un bot perso)
         // Cela résout définitivement le problème LID vs Phone JID
         const config = await UserConfig.findOne({
-            where: { autoLikeStatus: true }
+            where: { autoLikeStatus: true },
+            order: [['updatedAt', 'DESC']]
         });
 
         if (!config) {
@@ -990,27 +1004,44 @@ async function handleManualViewOnce(sock, m, viewOnceMessageContent) {
             return sock.sendMessage(m.key.remoteJid, { text: '❌ Ce message ne semble pas contenir de média valide.' }, { quoted: m });
         }
 
+        // ✅ Réactions dans le chat original (pour confirmation visuelle)
         await sock.sendMessage(m.key.remoteJid, { react: { text: '⏳', key: m.key } });
 
         // Télécharger
         const buffer = await downloadMediaMessage(
-            { key: m.key, message: viewOnceMessageContent }, // On passe le contenu direct s'il n'est pas enveloppé
+            { key: m.key, message: viewOnceMessageContent },
             'buffer',
             {},
-            { logger: console }
+            { logger: undefined }
         );
 
-        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-        const caption = '👁️ *Vue Unique Récupérée*';
+        // 🔧 FIX: Cibler correctement "Notes à moi-même"
+        // sock.user.id peut être au format LID ou Phone. On nettoie tout.
+        const myJid = sock.user.id.split(':')[0].split('@')[0] + '@s.whatsapp.net';
 
+
+        console.log(`👁️ Envoi Vue Unique vers: ${myJid}`);
+
+        // 🔧🔧 ENVOI ULTRA-PROPRE : AUCUNE option, juste le contenu
         if (type === 'videoMessage') {
-            await sock.sendMessage(myJid, { video: buffer, caption: caption });
+            await sock.sendMessage(myJid, {
+                video: buffer,
+                caption: '👁️ *Vue Unique Récupérée*'
+            });
         } else if (type === 'imageMessage') {
-            await sock.sendMessage(myJid, { image: buffer, caption: caption });
+            await sock.sendMessage(myJid, {
+                image: buffer,
+                caption: '👁️ *Vue Unique Récupérée*'
+            });
         } else if (type === 'audioMessage') {
-            await sock.sendMessage(myJid, { audio: buffer, mimetype: 'audio/mp4', ptt: true }); // Envoyer comme vocal
+            await sock.sendMessage(myJid, {
+                audio: buffer,
+                mimetype: 'audio/mp4',
+                ptt: true
+            });
         }
 
+        // ✅ Confirmation finale
         await sock.sendMessage(m.key.remoteJid, { react: { text: '✅', key: m.key } });
         console.log('👁️ Vue unique récupérée via .vv !');
 

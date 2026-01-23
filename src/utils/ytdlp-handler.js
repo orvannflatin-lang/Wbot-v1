@@ -51,8 +51,10 @@ export async function downloadWithYtdlp(url, options = {}) {
  * Télécharge uniquement l'audio en MP3
  */
 export async function downloadAudioMp3(url) {
-    const outputTemplate = '/tmp/%(id)s.mp3';
-    const cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputTemplate}" "${url}"`;
+    const uniqueId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    const outputTemplate = `/tmp/%(id)s_${uniqueId}.mp3`;
+    // FIX: WinError 32 -> avoid .part files and force overwrite
+    const cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 --no-part --force-overwrites -o "${outputTemplate}" "${url}"`;
 
     try {
         const { stdout } = await execAsync(cmd);
