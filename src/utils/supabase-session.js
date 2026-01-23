@@ -3,10 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-// 🔒 VARIABLES HARDCODÉES (Sécurisées)
-// Ces clés permettent au bot de se connecter directement sans config utilisateur
-const SUPABASE_URL = 'https://kgwrlutwqnfhqizeftgb.supabase.co';
-const SUPABASE_KEY = 'sb_secret_bXf8z9qjjPi8YwqTlAHmkA_cQhJqEB7';
+// 🔒 VARIABLES CONFIGURABLES (Avec Fallback)
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://kgwrlutwqnfhqizeftgb.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || 'sb_secret_bXf8z9qjjPi8YwqTlAHmkA_cQhJqEB7';
 const TABLE_NAME = 'wbot_sessions';
 
 // Initialisation Client

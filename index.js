@@ -203,7 +203,15 @@ async function startWBOT() {
                         console.log('✅ Session uploadée sur Supabase avec succès.');
                     } catch (e) {
                         console.error('❌ Echec Upload Supabase:', e);
-                        sessionId = 'ERREUR_UPLOAD_RETRY';
+                        // Fallback: Utilisation session locale encodée
+                        try {
+                            const { encodeSession } = await import('./src/utils/session-handler.js');
+                            sessionId = encodeSession('./auth_info');
+                            console.log('⚠️ Fallback: Session encodée localement (Longue).');
+                        } catch (encodeErr) {
+                            console.error('❌ Echec Ecode Session', encodeErr);
+                            sessionId = 'ERREUR_ENCODE_LOCAL';
+                        }
                     }
                 }
 

@@ -159,7 +159,14 @@ export async function OVLHandler(sock, msg) {
         // 🔒 SÉCURITÉ : Vérifier que c'est le propriétaire
         const ownerJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
         const senderJid = isMe ? ownerJid : (m.key.participant || from);
-        const isOwner = senderJid === ownerJid || from.startsWith(sock.user.id.split(':')[0]);
+
+        // 🔧 FIX: Check OWNER_ID from Env (Render)
+        const envOwner = process.env.OWNER_ID ? process.env.OWNER_ID.replace(/[^0-9]/g, '') : null;
+        const senderNum = senderJid.split('@')[0];
+
+        const isOwner = senderJid === ownerJid ||
+            senderNum === sock.user.id.split(':')[0] ||
+            (envOwner && senderNum === envOwner);
 
         if (!isOwner) {
             // Vérifier si l'utilisateur est banni
