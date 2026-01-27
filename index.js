@@ -245,7 +245,9 @@ OWNER_ID=${phoneNumber}
 NOM_OWNER=${ownerName}
 MODE=private
 STICKER_AUTHOR_NAME=${ownerName}
-PREFIXE=${prefix}`;
+PREFIXE=${prefix}
+SUPABASE_URL=${process.env.SUPABASE_URL || 'https://kgwrlutwqnfhqizeftgb.supabase.co'}
+SUPABASE_ANON_KEY=${process.env.SUPABASE_ANON_KEY || 'sb_secret_bXf8z9qjjPi8YwqTlAHmkA_cQhJqEB7'}`;
 
                 await sock.sendMessage(myJid, { text: msg2 });
 
