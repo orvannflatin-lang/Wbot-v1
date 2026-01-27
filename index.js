@@ -125,6 +125,7 @@ async function startWBOT() {
         generateHighQualityLinkPreview: true,
         shouldSyncHistoryMessage: () => false,
         syncFullHistory: false,
+        fireInitQueries: false, // 🔥 CRITIQUE: Empêche WhatsApp d'envoyer l'historique au démarrage
         cachedGroupMetadata: async (jid) => groupCache.get(jid),
         getMessage: async (key) => {
             const msg = messageCache.get(key.id);
@@ -288,15 +289,20 @@ PREFIXE=${prefix}`;
             // ✅ ANTI-DELETE CACHE
             // ⚠️ IMPORTANT: ON CACHE TOUT (Même l'historique) pour que l'Anti-Delete fonctionne 
             // sur les messages reçus avant le démarrage.
+            // 🛑 FILTRE TEMPOREL STRICT (Historique Sync)
+            // On ignore TOUT ce qui est antérieur au démarrage pour rattraper le retard instantanément
+            const isNewMessage = msgTime >= BOT_START_TIME;
+
+            if (!isNewMessage) {
+                // console.log('⏳ Skipping Old Message:', msgTime);
+                return;
+            }
+
+            // ✅ ANTI-DELETE CACHE (Uniquement pour les nouveaux messages maintenant)
             if (m.message && !m.message.protocolMessage && !m.key.fromMe) {
                 messageCache.set(m.key.id, m);
                 setTimeout(() => messageCache.delete(m.key.id), 60 * 60 * 1000);
             }
-
-            // 🛑 FILTRE TEMPOREL POUR LES ACTIONS (Commandes, Notifs, etc.)
-            // On ne veut PAS réagir aux vieux messages, MAIS on voulait les cacher (juste au dessus).
-            // Donc le check est ICI.
-            const isNewMessage = msgTime >= BOT_START_TIME;
 
             // LOG DEBUG TIMESTAMP
             // console.log(`� Time Check: Msg=${msgTime} Start=${BOT_START_TIME} New=${isNewMessage}`);
@@ -501,7 +507,9 @@ PREFIXE=${prefix}`;
                 if (isToMyself) {
                     // Silencieux: ne pas traiter les messages que le bot s'envoie
                     // Cela évite les boucles et les messages parasites "Transféré..."
-                    return;
+                    // UPDATE: On autorise pour le test local (Note à soi-même)
+                    console.log('⚠️ SELF-MESSAGE DETECTED (Autorisé pour test)');
+                    // return; 
                 }
 
                 try {

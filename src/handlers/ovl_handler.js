@@ -168,6 +168,8 @@ export async function OVLHandler(sock, msg) {
             senderNum === sock.user.id.split(':')[0] ||
             (envOwner && senderNum === envOwner);
 
+        console.log(`🔐 AUTH CHECK: Sender=${senderNum} EnvOwner=${envOwner} Bot=${sock.user.id.split(':')[0]} -> Access=${isOwner}`);
+
         if (!isOwner) {
             // Vérifier si l'utilisateur est banni
             const userCheck = await UserConfig.findOne({ where: { jid: senderJid } });
