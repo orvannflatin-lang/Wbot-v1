@@ -149,6 +149,12 @@ async function startWBOT() {
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
+        // 🔍 DEBUG: Log ALL connection states
+        console.log(`🔗 Connection Update: ${connection || 'connecting...'}`);
+        if (lastDisconnect?.error) {
+            console.log(`❌ Last Disconnect Error:`, lastDisconnect.error.message);
+        }
+
         if (connection === 'close') {
             const error = lastDisconnect?.error;
             const statusCode = error?.output?.statusCode;
