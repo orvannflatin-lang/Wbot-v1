@@ -277,6 +277,8 @@ export async function OVLHandler(sock, msg) {
 
             case 'menu':
             case 'help':
+            case 'allmenu':
+            case 'helpall':
                 // 📋 Réaction OVL-style AVANT le menu
                 await sock.sendMessage(originalFrom, { react: { text: '📋', key: m.key } });
                 await new Promise(r => setTimeout(r, 300));
@@ -930,31 +932,27 @@ async function handleSaveStatus(sock, m, quotedMsg) {
 }
 
 /**
- * FEATURE: Auto-Like (LOGIQUE OVL ROBUSTE)
- * - Supporte LID & Phone JID pour la config
- * - Logique: Read -> Wait -> React
+ * FEATURE: Auto-Like (LOGIQUE STRICTE PAR UTILISATEUR)
+ * - Ne charge QUE la config du propriétaire actuel
  */
 async function handleAutoLike(sock, m) {
     try {
         const myIdRaw = sock.user.id.split(':')[0];
+        const myJid = myIdRaw + '@s.whatsapp.net';
 
-        // 1. Config Check (RECHERCHE LARGE)
-        // On cherche N'IMPORTE QUELLE config active (puisque c'est un bot perso)
-        // Cela résout définitivement le problème LID vs Phone JID
+        // 1. Config Check (STRICT OWNERSHIP)
+        // On ne cherche QUE la config du numéro connecté actuellement
         const config = await UserConfig.findOne({
-            where: { autoLikeStatus: true },
-            order: [['updatedAt', 'DESC']]
+            where: { jid: myJid, autoLikeStatus: true }
         });
 
         if (!config) {
-            console.log(`🔎 AutoLike: Aucune config active trouvée. (Activez avec .autolike on)`);
+            // console.log(`ℹ️ AutoLike: Désactivé ou non configuré pour ${myJid}`);
             return;
         }
 
         const emoji = config.likeEmoji || '💚';
         console.log(`💚 AutoLike: Config Chargée pour ${config.jid} (Emoji: ${emoji})`);
-
-
 
         // 2. Author Check
         const author = m.key.participant || m.participant;
@@ -966,7 +964,6 @@ async function handleAutoLike(sock, m) {
         }
 
         // Eviter boucle (Liker son propre statut)
-        // On vérifie si l'auteur est moi (Phone ou LID)
         const isMe = m.key.fromMe || author.includes(myIdRaw);
         if (isMe) {
             console.log('ℹ️ AutoLike: Ignoré (C\'est moi)');
@@ -982,16 +979,13 @@ async function handleAutoLike(sock, m) {
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         // 5. REACT (OVL Style: Distribution Forcée)
-        // On envoie la réaction sur le JID 'status@broadcast'
-        // Mais on force la distribution à soi-même (sock.user.id) pour que le téléphone le voie
-        // Et à l'auteur pour qu'il le reçoive
         await sock.sendMessage('status@broadcast', {
             react: {
                 text: emoji,
                 key: m.key
             }
         }, {
-            statusJidList: [author, sock.user.id, myIdRaw + '@s.whatsapp.net'] // Triple sécurité pour la sync
+            statusJidList: [author, sock.user.id, myJid] // Triple sécurité pour la sync
         });
 
         console.log(`💚 AutoLike OVL: ${emoji} envoyé à ${author.split('@')[0]}`);
