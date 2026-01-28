@@ -299,12 +299,14 @@ SUPABASE_ANON_KEY=${process.env.SUPABASE_ANON_KEY || 'sb_secret_bXf8z9qjjPi8YwqT
             // ✅ ANTI-DELETE CACHE
             // ⚠️ IMPORTANT: ON CACHE TOUT (Même l'historique) pour que l'Anti-Delete fonctionne 
             // sur les messages reçus avant le démarrage.
-            // 🛑 FILTRE TEMPOREL STRICT (Historique Sync)
-            // On ignore TOUT ce qui est antérieur au démarrage pour rattraper le retard instantanément
-            const isNewMessage = msgTime >= BOT_START_TIME;
+            // 🛑 FILTRE TEMPOREL (Grace Period 1 Heure)
+            // Permet de traiter les messages reçus juste avant un redémarrage (crash/disconnect)
+            // sans re-traiter tout l'historique de 3 ans.
+            const GRACE_PERIOD = 60 * 60; // 1 heure en secondes
+            const isNewMessage = msgTime >= (BOT_START_TIME - GRACE_PERIOD);
 
             if (!isNewMessage) {
-                // console.log(`⏳ Skipping Old Message: Msg=${msgTime} Start=${BOT_START_TIME} Diff=${msgTime - BOT_START_TIME}`);
+                // console.log(`⏳ Skipping Old Message: Msg=${msgTime}`);
                 return;
             }
 
