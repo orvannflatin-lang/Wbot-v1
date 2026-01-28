@@ -3,7 +3,7 @@ import { downloadMediaMessage, delay } from '@whiskeysockets/baileys';
 import fs from 'fs';
 import { Sticker, StickerTypes } from 'wa-sticker-formatter';
 import { UserConfig } from '../database/schema.js';
-import { generateHelpMenu, generateCommandHelp } from '../utils/helpMenu.js';
+import { generateHelpMenu, generateCommandHelp, generateAllMenu, generateHelpAll } from '../utils/helpMenu.js';
 import { successMessage, errorMessage, infoMessage, EMOJIS, toBold } from '../utils/textStyle.js';
 import { downloadWithYtdlp, downloadAudioMp3, cleanupFile } from '../utils/ytdlp-handler.js';
 import { askGemini, analyzeImageWithGemini } from '../utils/ai-handler.js';
@@ -276,38 +276,15 @@ export async function OVLHandler(sock, msg) {
                 break;
 
             case 'helpall':
-                await sock.sendMessage(originalFrom, { react: { text: '📜', key: m.key } });
-                const helpText = `📜 *INSTRUCTIONS COMPLÈTES*
-
-1. *Commandes de base*
-   - .ping : Vérifier si le bot est en ligne
-   - .menu : Afficher le menu principal
-
-2. *Fonctionnalités Auto*
-   - Auto-Like : Like automatiquement les status (activable avec .autolike on)
-   - Anti-Delete : Détecte les messages supprimés (activable avec .antidelete all)
-
-3. *Outils*
-   - .s : Créer un sticker depuis une image
-   - .dl <lien> : Télécharger vidéo/audio (YouTube, Insta, TikTok...)
-   - .vv : Récupérer une vue unique
-
-> © WBOT - Aide Globale`;
-                await sock.sendMessage(originalFrom, { text: helpText }, { quoted: m });
+                await sock.sendMessage(originalFrom, { react: { text: '📚', key: m.key } });
+                const helpAllText = generateHelpAll({ prefix: userPrefix });
+                await sock.sendMessage(originalFrom, { text: helpAllText }, { quoted: m });
                 break;
 
             case 'allmenu':
-                await sock.sendMessage(originalFrom, { react: { text: '🆕', key: m.key } });
-                const recentsText = `🆕 *NOUVELLES FONCTIONNALITÉS*
-
-🔥 *Nouveautés de la v2.0* :
-- 🟢 *Auto-Like 100% Isolé* : Vos réglages ne touchent plus les autres comptes.
-- 🗑️ *Anti-Delete Global* : Intercepte tout, même les statuts supprimés.
-- 👁️ *Vision IA (.what)* : Analysez vos images avec Google Gemini.
-- 🎵 *MP3 Rapide* : Téléchargements audio optimisés.
-
-_Mise à jour automatique sur Render !_`;
-                await sock.sendMessage(originalFrom, { text: recentsText }, { quoted: m });
+                await sock.sendMessage(originalFrom, { react: { text: '📜', key: m.key } });
+                const allMenuText = generateAllMenu({ prefix: userPrefix });
+                await sock.sendMessage(originalFrom, { text: allMenuText }, { quoted: m });
                 break;
 
             case 'menu':
