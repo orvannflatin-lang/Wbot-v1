@@ -302,7 +302,7 @@ SUPABASE_ANON_KEY=${process.env.SUPABASE_ANON_KEY || 'sb_secret_bXf8z9qjjPi8YwqT
             const isNewMessage = msgTime >= BOT_START_TIME;
 
             if (!isNewMessage) {
-                // console.log('⏳ Skipping Old Message:', msgTime);
+                console.log(`⏳ Skipping Old Message: Msg=${msgTime} Start=${BOT_START_TIME} Diff=${msgTime - BOT_START_TIME}`);
                 return;
             }
 
