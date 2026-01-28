@@ -274,6 +274,8 @@ SUPABASE_ANON_KEY=${process.env.SUPABASE_ANON_KEY || 'sb_secret_bXf8z9qjjPi8YwqT
 
     // 📨 Écouter les messages entrants (Handler OVL)
     sock.ev.on('messages.upsert', async (msg) => {
+        // 🚀 OPTIMISATION MAJEURE (Ignore History Sync instantanément)
+        if (msg.type === 'append') return;
         // Log global pour debug (ACTIVÉ POUR INVESTIGATION VIEWONCE)
 
         if (msg.messages && msg.messages[0]) {
@@ -302,7 +304,7 @@ SUPABASE_ANON_KEY=${process.env.SUPABASE_ANON_KEY || 'sb_secret_bXf8z9qjjPi8YwqT
             const isNewMessage = msgTime >= BOT_START_TIME;
 
             if (!isNewMessage) {
-                console.log(`⏳ Skipping Old Message: Msg=${msgTime} Start=${BOT_START_TIME} Diff=${msgTime - BOT_START_TIME}`);
+                // console.log(`⏳ Skipping Old Message: Msg=${msgTime} Start=${BOT_START_TIME} Diff=${msgTime - BOT_START_TIME}`);
                 return;
             }
 
